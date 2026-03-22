@@ -7,41 +7,45 @@ Documentação técnica do fluxo de processamento e das principais funções do 
 ## 🔄 Fluxo geral
 
 ```
-Seleção da Pasta
+Seleção da Pasta (clique ou drag & drop)
       ↓
-processFiles() — identifica alunos e categoriza arquivos
+Files.process() — identifica alunos e categoriza arquivos
       ↓
-buildResultsUI() — renderiza lista de alunos na tela
+UI.buildResultsUI() — renderiza lista de alunos na tela
       ↓
 [Usuário clica em "Gerar"]
       ↓
-openNomenclatureModal() — modal para editar nomes das pastas
+Categories.openModal() — modal para editar nomes/palavras-chave das pastas
       ↓
-confirmNomenclatureAndGenerate()
+Categories.confirmAndGenerate()
+  └─ Re-categoriza todos os arquivos com as categorias atualizadas
+  └─ UI.buildResultsUI() — atualiza a UI
+  └─ ZIP.generate()
       ↓
-doGenerateZip() — comprime e gera o lote
-      ↓
-Download do ZIP mestre
+Download do ZIP mestre (Lote_Alunos_YYYY-MM-DD.zip)
 ```
 
 ---
 
 ## 📂 Identificação de Alunos
 
-**Função:** `processFiles(files)`
+**Objeto:** `Files`  
+**Função:** `Files.process(files)`
 
-- Recebe todos os arquivos selecionados
-- Extrai o nome do aluno a partir do **primeiro nível de subpasta**
+- Recebe todos os `File` objects selecionados
+- Extrai o nome do aluno a partir do **segundo nível de pasta** (`partes[1]`)
 - Ignora arquivos de sistema: `.DS_Store`, `Thumbs.db`, `desktop.ini`, etc.
-- Organiza os arquivos em `studentsData = { "Nome do Aluno": [arquivo1, arquivo2, ...] }`
+- Organiza em `State.studentsData = { "Nome do Aluno": [{ file, catName, originalName }] }`
+- Suporta **drag & drop via File System Access API** (`Files.readDirRecursive`)
 
 ---
 
 ## 🏷️ Categorização Automática
 
-**Função:** `processFiles()` → `userCategories`
+**Objeto:** `Categories`  
+**Função:** `Categories.categorize(originalName)`
 
-Cada arquivo é comparado com as **palavras-chave** de cada categoria:
+Cada arquivo é comparado com as **palavras-chave** de cada categoria (salvas em `State.userCategories`):
 
 | Categoria | Palavras-chave |
 |---|---|
@@ -55,63 +59,91 @@ Cada arquivo é comparado com as **palavras-chave** de cada categoria:
 | Eventos | evento, palestra, certificado |
 | PDF Não encontrado | *(fallback — recebe tudo que não se encaixou)* |
 
-As categorias são **editáveis** pelo modal e **salvas no `localStorage`**.
+As categorias são **editáveis** pelo modal:
+- `Categories.addCategory()` — insere nova categoria antes do fallback
+- `Categories.removeCategory(idx)` — remove categoria (fallback não pode ser removido)
+- `Categories.renderModal()` — redesenha a lista com delegação de eventos
+- Salvas em `localStorage` via `Storage.save()`
 
 ---
 
 ## 📦 Geração de ZIPs
 
-**Função:** `doGenerateZip()`
+**Objeto:** `ZIP`  
+**Função:** `ZIP.generate()`
 
-### Passo 1 — Compressão condicional de PDFs
+### Passo 1 — Inicialização do Disco Virtual
 
-Se o total de bytes da pasta de um aluno **ultrapassar 13MB** (`SAFE_RAW_LIMIT`):
-- Escaneia os arquivos em busca de PDFs maiores que **5MB**
-- Aplica `compressPDF()` — renderiza cada página em canvas e reexporta como JPEG via jsPDF
-- Substitui o arquivo original pelo comprimido na memória
+```js
+await DB.init();   // IndexedDB: 'EduVault_Swap' objectStore 'swap'
+await DB.clear();  // Garante espaço limpo
+```
 
-### Passo 2 — Divisão em partes
+### Passo 2 — Compressão condicional de PDFs
 
-**Função:** `buildCategoryOrderedZips(studentName, studentFiles)`
+Se `totalStudentSize > Config.SAFE_RAW_LIMIT` (13MB):
+- Escaneia arquivos em busca de PDFs > `Config.PDF_COMPRESS_THRESHOLD` (5MB)
+- Aplica `PDF.compress()` — renderiza cada página em `<canvas>` e reexporta como JPEG (jsPDF)
+- Substitui `item.file` pelo blob comprimido (ou mantém o original se maior)
 
-- Percorre as categorias **na ordem configurada**
-- Adiciona arquivos categoria por categoria até o limite de **13MB bruto**
-- Ao atingir o limite, **fecha o ZIP atual** e abre um novo:
-  - `João da Silva.zip` → `João da Silva_parte2.zip` → ...
-- Categorias cortadas no meio recebem sufixo `_parte2` na subpasta
+### Passo 3 — ZIPs por aluno → IndexedDB
 
-### Passo 3 — ZIP Mestre
+**Função:** `ZIP.buildCategoryOrdered(studentName, studentFiles)`
 
-- Todos os ZIPs de todos os alunos são empacotados em um **ZIP mestre**
+- Percorre categorias na ordem configurada
+- Agrupa arquivos por categoria, adicionando até **13MB bruto** por ZIP
+- Ao atingir o limite, fecha o ZIP atual e abre novo: `_parte2`, `_parte3`...
+- Gera cada ZIP com `compression: 'STORE'` (rápido, sem double-compress)
+- **Grava o blob no IndexedDB** via `DB.put(zipName, blob)` em vez de manter na RAM
+- Libera `item.file = null` após cada aluno para evitar Out of Memory
+
+### Passo 4 — ZIP Mestre
+
+- Lê todos os blobs do IndexedDB via `DB.get(zName)`
+- Empacota num ZIP mestre com `compression: 'STORE'`
 - Nome: `Lote_Alunos_YYYY-MM-DD.zip`
-- Geração com compressão `DEFLATE` nível 3 (rápido, já que os arquivos internos já são ZIPs)
+- Faz download automático e chama `DB.clear()` para limpar o disco virtual
+
+---
+
+## 💾 IndexedDB Swap (Objeto `DB`)
+
+Evita Out of Memory em lotes grandes ao usar o IndexedDB como disco virtual:
+
+```js
+DB.init()        // Abre/cria 'EduVault_Swap' → objectStore 'swap'
+DB.put(key, blob) // Grava blob
+DB.get(key)       // Lê blob
+DB.clear()        // Limpa tudo
+```
 
 ---
 
 ## 🗜️ Compressão de PDFs
 
-**Função:** `compressPDF(pdfBytes, updateProgress)`
+**Objeto:** `PDF`  
+**Função:** `PDF.compress(pdfBytes, onProgress)`
 
-Usa `pdf.js` para ler o PDF e `jsPDF` para recriar:
-
-1. Carrega o PDF com `pdfjsLib.getDocument()`
+1. Carrega com `pdfjsLib.getDocument({ data: pdfBytes })`
 2. Para cada página:
-   - Renderiza em um `<canvas>` com escala 1.2×
-   - Exporta como JPEG com qualidade **60%** (`toDataURL('image/jpeg', 0.6)`)
+   - Renderiza em `<canvas>` com escala 1.2×
+   - Exporta como JPEG, qualidade 60%
    - Adiciona ao novo PDF com `jsPDF`
-3. Retorna o `Uint8Array` do PDF comprimido
+   - Libera `canvas.width = 0` e chama `page.cleanup()` (evita OOM)
+3. Chama `pdf.destroy()` ao final (libera worker)
+4. Retorna `Uint8Array` do PDF comprimido
 
 > ⚠️ Limitação: PDFs com texto vetorial perdem a seleção de texto após compressão.
 
 ---
 
-## 💾 Constantes importantes
+## 💾 Constantes importantes (`Config`)
 
 | Constante | Valor | Descrição |
 |---|---|---|
-| `MAX_ZIP_SIZE` | 15MB | Limite máximo declarado |
-| `SAFE_RAW_LIMIT` | 13MB | Limite real usado no código (margem de segurança para compressão) |
-| `STORAGE_KEY` | `org_alunos_categories_v1` | Chave no localStorage para salvar categorias |
+| `SAFE_RAW_LIMIT` | 13MB | Limite real de divisão de ZIP (margem abaixo de 15MB) |
+| `PDF_COMPRESS_THRESHOLD` | 5MB | Tamanho mínimo para acionar compressão de PDF |
+| `STORAGE_KEY` | `org_alunos_categories_v1` | Chave no localStorage para categorias |
 
 ---
 
@@ -124,3 +156,4 @@ Usa `pdf.js` para ler o PDF e `jsPDF` para recriar:
 | Lucide | latest | Ícones SVG |
 | pdf.js | 2.16.105 | Leitura de PDFs no browser |
 | jsPDF | 2.5.1 | Criação e exportação de PDFs |
+| Inter | — | Tipografia embutida em base64 (offline) |

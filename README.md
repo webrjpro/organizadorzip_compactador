@@ -29,10 +29,12 @@ Pasta_Mestre/
 | Recurso | Descrição |
 |---|---|
 | 🗂️ Categorização automática | Detecta tipo de documento pelo nome do arquivo |
-| 📏 Limite de 15MB | Divide automaticamente se necessário |
-| 🗜️ Compressão de PDFs | PDFs > 5MB são comprimidos automaticamente |
+| ✏️ Edição de categorias | Adicionar, renomear e remover categorias em tempo real |
+| 📏 Limite de 15MB | Divide automaticamente ZIPs que ultrapassem o limite |
+| 🗜️ Compressão de PDFs | PDFs > 5MB são comprimidos via canvas/JPEG (pdf.js + jsPDF) |
+| 💾 IndexedDB Swap | ZIPs intermediários gravados em disco virtual para evitar Out of Memory |
 | 🔒 100% offline | Nenhum dado é enviado para servidores |
-| ✏️ Edição de categorias | Nomes de pasta configuráveis em tempo real |
+| 📱 PWA | Instalável como app via Service Worker |
 
 ## 🧩 Dependências
 
@@ -40,12 +42,26 @@ Todas embutidas diretamente no `index.html`:
 
 - **JSZip** 3.10.1 — criação de arquivos ZIP
 - **Tailwind CSS** 3.4.17 — estilização
-- **Lucide Icons** — ícones
+- **Lucide Icons** — ícones SVG
 - **pdf.js** 2.16 + **jsPDF** 2.5.1 — leitura e compressão de PDFs
-- **Inter** (Google Fonts) — tipografia *(requer internet apenas para a fonte)*
+- **Inter** (Google Fonts) — tipografia *(embutida offline em base64)*
 
 ## 📋 Requisitos
 
 - Navegador moderno: **Chrome 86+**, **Edge 86+** ou **Firefox 111+**
 - Suporte a **File System Access API** para arrastar pastas (Chrome/Edge)
-- Conexão com internet apenas para carregar a fonte Inter (opcional)
+- Sem necessidade de internet — fontes e dependências embutidas no HTML
+
+## 🗂️ Arquivos do projeto
+
+| Arquivo | Descrição |
+|---|---|
+| `index.html` | Aplicação completa (HTML + CSS + JS embutidos) |
+| `manifest.json` | Manifest do PWA |
+| `sw.js` | Service Worker para cache offline |
+| `icon-192.jpeg` / `icon-512.jpeg` | Ícones do PWA |
+| `app_only.js` | Código JS isolado (referência de desenvolvimento) |
+| `apply_idb.js` | Script Node.js — patch do IndexedDB swap |
+| `fix_inputs.js` | Script Node.js — patch de estilos dos inputs |
+| `fix_oom.js` | Script Node.js — patch de gestão de memória |
+| `fix_qa_bugs.js` | Script Node.js — patch de bugs QA (removeCategory, etc.) |
