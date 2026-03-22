@@ -1,4 +1,4 @@
-const CACHE_NAME = 'organizador-alunos-v1';
+const CACHE_NAME = 'organizador-alunos-v2';
 
 // O PWA só precisa de cachear o próprio index.html, 
 // pois todo o CSS, JS e Fontes já estão embutidos nele!
