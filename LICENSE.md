@@ -1,5 +1,5 @@
 # LICENÇA DE SOFTWARE PROPRIETÁRIO
-### Organizador Automático de Alunos
+### Organizador Automático de Alunos — v2.0.0
 
 ---
 
@@ -81,10 +81,12 @@ respectivas licenças, que permanecem de propriedade de seus autores originais:
 | Lucide Icons | ISC | Lucide Contributors |
 | pdf.js 2.16.105 | Apache 2.0 | Mozilla Foundation |
 | jsPDF 2.5.1 | MIT | James Hall e contribuidores |
+| SheetJS (xlsx) | Apache 2.0 | SheetJS Contributors |
 
 A presente Licença não altera nem substitui as licenças das bibliotecas
 acima mencionadas. O código original de autoria do Titular — compreendendo
-a lógica de categorização, geração de ZIPs, integração das bibliotecas,
+a lógica de categorização, geração de ZIPs, conversor Moodle CSV, relatório
+de visualizações, detecção automática de arquivos, integração das bibliotecas,
 interface gráfica e toda a arquitetura do sistema — permanece sob proteção
 exclusiva desta Licença.
 
@@ -141,7 +143,7 @@ Autor:   Carlos Antonio de Oliveira Piquet
 Área:    Estudante de Redes de Computadores
 Contato: carlospiquet.projetos@gmail.com
 Data:    2026
-Versão:  1.0.0
+Versão:  2.0.0
 ```
 
 ---
