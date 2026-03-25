@@ -1,0 +1,40 @@
+# -*- mode: python ; coding: utf-8 -*-
+# =============================================================================
+# Zipador de Alta Performance - Version Info
+# Copyright (C) 2026 Carlos Antonio de Oliveira Piquet
+# =============================================================================
+
+VSVersionInfo(
+  ffi=FixedFileInfo(
+    filevers=(1, 0, 0, 0),
+    prodvers=(1, 0, 0, 0),
+    mask=0x3f,
+    flags=0x0,
+    OS=0x40004,
+    fileType=0x1,
+    subtype=0x0,
+    date=(0, 0)
+  ),
+  kids=[
+    StringFileInfo(
+      [
+        StringTable(
+          u'041604B0',
+          [
+            StringStruct(u'CompanyName', u'Piquet Software'),
+            StringStruct(u'FileDescription', u'Zipador de Alta Performance - Compactador e Descompactador ZIP'),
+            StringStruct(u'FileVersion', u'1.0.0.0'),
+            StringStruct(u'InternalName', u'Zipador'),
+            StringStruct(u'LegalCopyright', u'Copyright \u00a9 2026 Carlos Antonio de Oliveira Piquet. Todos os direitos reservados.'),
+            StringStruct(u'LegalTrademarks', u'Zipador \u00e9 marca registrada de Carlos Antonio de Oliveira Piquet'),
+            StringStruct(u'OriginalFilename', u'Zipador.exe'),
+            StringStruct(u'ProductName', u'Zipador de Alta Performance'),
+            StringStruct(u'ProductVersion', u'1.0.0.0'),
+            StringStruct(u'Comments', u'Software propriet\u00e1rio. Proibida a c\u00f3pia, modifica\u00e7\u00e3o ou redistribui\u00e7\u00e3o n\u00e3o autorizada.'),
+          ]
+        )
+      ]
+    ),
+    VarFileInfo([VarStruct(u'Translation', [0x0416, 1200])])
+  ]
+)

@@ -1,0 +1,198 @@
+================================================================================
+             CONTRATO DE LICENÇA DE USUÁRIO FINAL (EULA)
+                    ZIPADOR DE ALTA PERFORMANCE
+================================================================================
+
+                   Copyright (C) 2026
+              Carlos Antonio de Oliveira Piquet
+              carlospiquet.projetos@gmail.com
+                      Piquet Software
+
+================================================================================
+
+LEIA ATENTAMENTE ESTE CONTRATO ANTES DE INSTALAR OU UTILIZAR O SOFTWARE.
+
+AO INSTALAR, COPIAR OU UTILIZAR ESTE SOFTWARE, VOCÊ CONCORDA COM OS TERMOS
+E CONDIÇÕES DESTE CONTRATO. SE VOCÊ NÃO CONCORDAR, NÃO INSTALE NEM UTILIZE
+O SOFTWARE.
+
+================================================================================
+
+1. DEFINIÇÕES
+
+1.1. "Software" refere-se ao programa "Zipador de Alta Performance", incluindo
+     todos os seus componentes, atualizações, documentação e materiais
+     associados.
+
+1.2. "Autor" refere-se a Carlos Antonio de Oliveira Piquet, detentor
+     exclusivo de todos os direitos sobre o Software.
+
+1.3. "Usuário" refere-se à pessoa física ou jurídica que instala e/ou utiliza
+     o Software.
+
+1.4. "Licença" refere-se ao direito limitado de uso concedido por este
+     contrato.
+
+================================================================================
+
+2. CONCESSÃO DE LICENÇA
+
+2.1. O Autor concede ao Usuário uma licença PESSOAL, NÃO EXCLUSIVA,
+     INTRANSFERÍVEL e REVOGÁVEL para instalar e utilizar o Software em
+     UM ÚNICO COMPUTADOR.
+
+2.2. A licença é vinculada ao hardware da máquina onde foi instalada
+     (identificação por HWID - Hardware ID).
+
+2.3. O Usuário NÃO pode transferir esta licença para outra pessoa ou
+     computador sem autorização prévia e por escrito do Autor.
+
+================================================================================
+
+3. RESTRIÇÕES
+
+É EXPRESSAMENTE PROIBIDO ao Usuário:
+
+3.1. Copiar, duplicar ou reproduzir o Software, total ou parcialmente;
+
+3.2. Modificar, adaptar, traduzir, ou criar obras derivadas do Software;
+
+3.3. Descompilar, desmontar, fazer engenharia reversa ou tentar obter
+     o código-fonte do Software;
+
+3.4. Redistribuir, sublicenciar, alugar, emprestar, vender ou transferir
+     o Software a terceiros;
+
+3.5. Remover, alterar ou ocultar avisos de direitos autorais, marcas
+     registradas ou outros avisos de propriedade do Software;
+
+3.6. Utilizar o Software para fins ilegais ou não autorizados;
+
+3.7. Contornar, desabilitar ou interferir em qualquer mecanismo de
+     proteção, licenciamento ou segurança do Software;
+
+3.8. Distribuir cópias modificadas ou não modificadas do Software em
+     qualquer meio, incluindo mas não limitado a websites, redes P2P,
+     mídias físicas ou serviços de armazenamento em nuvem.
+
+================================================================================
+
+4. PROPRIEDADE INTELECTUAL
+
+4.1. O Software é protegido pelas leis brasileiras de direitos autorais,
+     incluindo:
+     - Lei nº 9.609/98 (Lei do Software)
+     - Lei nº 9.610/98 (Lei de Direitos Autorais)
+     - Decreto nº 2.556/98
+
+4.2. O Software é também protegido por tratados internacionais, incluindo:
+     - Convenção de Berna para a Proteção de Obras Literárias e Artísticas
+     - Acordo TRIPS (Trade-Related Aspects of Intellectual Property Rights)
+     - Tratado da OMPI sobre Direito de Autor (WCT)
+
+4.3. TODOS os direitos de propriedade intelectual sobre o Software,
+     incluindo mas não limitado a direitos autorais, marcas, segredos
+     comerciais e patentes, são e permanecerão de propriedade exclusiva
+     de Carlos Antonio de Oliveira Piquet.
+
+4.4. Este contrato NÃO transfere nenhum direito de propriedade ao Usuário.
+     O Usuário recebe apenas o direito limitado de USO conforme os termos
+     deste contrato.
+
+================================================================================
+
+5. MECANISMOS DE PROTEÇÃO
+
+5.1. O Software contém mecanismos de proteção contra cópia, incluindo:
+     - Vinculação por Hardware ID (HWID)
+     - Verificação de integridade do executável
+     - Marcas d'água digitais nos arquivos gerados
+     - Sistema de licenciamento criptográfico
+
+5.2. QUALQUER tentativa de contornar, remover ou desabilitar estes
+     mecanismos constitui violação deste contrato e das leis aplicáveis.
+
+================================================================================
+
+6. PENALIDADES
+
+6.1. A VIOLAÇÃO deste contrato sujeita o infrator a:
+
+     a) RESPONSABILIDADE CIVIL:
+        - Indenização por danos materiais e morais
+        - Lucros cessantes
+        - Custas processuais e honorários advocatícios
+        - Multa contratual de R$ 50.000,00 (cinquenta mil reais) por
+          cada violação identificada
+
+     b) RESPONSABILIDADE CRIMINAL (conforme Lei 9.609/98):
+        - Art. 12: Pena de detenção de 6 meses a 2 anos, ou multa
+          (reprodução não autorizada)
+        - Art. 12 §1º: Pena de reclusão de 1 a 4 anos, e multa
+          (reprodução com intuito de lucro)
+        - Art. 12 §3º: Pena de reclusão de 2 a 4 anos, e multa
+          (venda de cópia de programa obtido ilicitamente)
+
+================================================================================
+
+7. GARANTIA LIMITADA
+
+7.1. O Software é fornecido "COMO ESTÁ" (AS IS), sem garantias de
+     qualquer tipo, expressas ou implícitas.
+
+7.2. O Autor NÃO garante que o Software será livre de erros ou que
+     funcionará de forma ininterrupta.
+
+7.3. O Autor NÃO se responsabiliza por quaisquer danos diretos,
+     indiretos, incidentais, especiais ou consequenciais decorrentes
+     do uso ou incapacidade de uso do Software.
+
+================================================================================
+
+8. RESCISÃO
+
+8.1. Este contrato pode ser rescindido automaticamente se o Usuário
+     violar qualquer um de seus termos.
+
+8.2. Após a rescisão, o Usuário deve:
+     - Cessar imediatamente todo uso do Software
+     - Desinstalar e destruir todas as cópias do Software
+     - Excluir quaisquer backups contendo o Software
+
+8.3. As cláusulas de propriedade intelectual e penalidades sobrevivem
+     à rescisão deste contrato.
+
+================================================================================
+
+9. DISPOSIÇÕES GERAIS
+
+9.1. Este contrato é regido pelas leis da República Federativa do Brasil.
+
+9.2. Fica eleito o foro da comarca de domicílio do Autor para dirimir
+     quaisquer questões oriundas deste contrato.
+
+9.3. A invalidade de qualquer cláusula não afetará as demais disposições.
+
+9.4. A tolerância do Autor quanto a eventuais infrações não será
+     considerada renúncia a seus direitos.
+
+================================================================================
+
+10. CONTATO
+
+Para questões sobre licenciamento, autorizações ou denúncias de pirataria:
+
+     Desenvolvedor : Carlos Antonio de Oliveira Piquet
+     Email         : carlospiquet.projetos@gmail.com
+     Publisher     : Piquet Software
+
+================================================================================
+
+AO INSTALAR ESTE SOFTWARE, VOCÊ DECLARA TER LIDO, COMPREENDIDO E
+CONCORDADO COM TODOS OS TERMOS E CONDIÇÕES DESTE CONTRATO.
+
+================================================================================
+             © 2026 Carlos Antonio de Oliveira Piquet
+                      Piquet Software
+                Todos os direitos reservados.
+================================================================================
