@@ -377,6 +377,27 @@ class CsvApp {
         this.setupEventListeners();
     }
 
+    static getRequiredFieldKeys() {
+        return ['nome_completo', 'turma', 'matricula_esap'];
+    }
+
+    static getOptionalFieldKeys() {
+        return Array.from(this.el.csvCheckboxes)
+            .filter(cb => !cb.disabled)
+            .map(cb => cb.value);
+    }
+
+    static syncSelectAllState() {
+        if (!this.el.csvSelectAll) return;
+
+        const optionalCheckboxes = Array.from(this.el.csvCheckboxes).filter(cb => !cb.disabled);
+        const checkedCount = optionalCheckboxes.filter(cb => cb.checked).length;
+        const totalCount = optionalCheckboxes.length;
+
+        this.el.csvSelectAll.indeterminate = checkedCount > 0 && checkedCount < totalCount;
+        this.el.csvSelectAll.checked = totalCount > 0 && checkedCount === totalCount;
+    }
+
     static setupEventListeners() {
         // Elements
         this.el = {
@@ -401,8 +422,14 @@ class CsvApp {
                 this.el.csvCheckboxes.forEach(cb => {
                     if (!cb.disabled) cb.checked = isChecked;
                 });
+                this.syncSelectAllState();
             });
         }
+
+        this.el.csvCheckboxes.forEach(cb => {
+            if (cb.disabled) return;
+            cb.addEventListener('change', () => this.syncSelectAllState());
+        });
 
         if (this.el.csvReadBtn) this.el.csvReadBtn.addEventListener('click', () => this.handleReadButtonClick());
         if (this.el.csvTransformBtn) this.el.csvTransformBtn.addEventListener('click', () => this.handleTransformButtonClick());
@@ -428,16 +455,33 @@ class CsvApp {
         this.el.csvSectionInput.classList.remove('hidden-section');
         this.el.csvSectionOriginal.classList.add('hidden-section');
         this.el.csvSectionTransformed.classList.add('hidden-section');
-        
+
+        this.el.csvCheckboxes.forEach(cb => {
+            if (!cb.disabled) cb.checked = false;
+        });
+        if (this.el.csvSelectAll) {
+            this.el.csvSelectAll.checked = false;
+            this.el.csvSelectAll.indeterminate = false;
+        }
+
         this.el.csvReadBtn.disabled = false;
-        
+        this.selectedFields = this.getRequiredFieldKeys();
+        this.syncSelectAllState();
+
         UI.toast(`Planilha reconhecida: ${file.name}`, 'info');
     }
 
     static getSelectedFields() {
-        return Array.from(this.el.csvCheckboxes)
-            .filter(cb => cb.checked)
-            .map(cb => cb.value);
+        const requiredFields = this.getRequiredFieldKeys();
+        const optionalFields = this.getOptionalFieldKeys();
+
+        const checkedOptionalFields = this.el.csvSelectAll && this.el.csvSelectAll.checked
+            ? optionalFields
+            : Array.from(this.el.csvCheckboxes)
+                .filter(cb => !cb.disabled && cb.checked)
+                .map(cb => cb.value);
+
+        return [...new Set([...requiredFields, ...checkedOptionalFields])];
     }
 
     static async handleReadButtonClick() {
