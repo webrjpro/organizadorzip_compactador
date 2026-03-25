@@ -115,6 +115,7 @@ class CsvFileProcessor {
     constructor() {
         this.rawData = [];
         this.processedData = [];
+        this.processedFieldOrder = [];
         this.transformedContent = '';
         this.currentFile = null;
     }
@@ -168,12 +169,22 @@ class CsvFileProcessor {
         const normalizedHeaders = headers.map(h => this.normalizeHeader(h));
         
         for (const [key, fieldInfo] of Object.entries(CsvFileProcessor.FIELD_MAPPINGS)) {
+            const variants = [key, ...(fieldInfo.input || [])]
+                .map(v => this.normalizeHeader(v))
+                .filter(Boolean);
+
             let foundIndex = -1;
-            for (const inputVariant of fieldInfo.input) {
-                const normalizedVariant = this.normalizeHeader(inputVariant);
-                foundIndex = normalizedHeaders.findIndex(h => h.includes(normalizedVariant));
-                if (foundIndex !== -1) {
-                    break;
+
+            // Prioriza correspondência exata antes de buscar por trecho
+            for (const normalizedVariant of variants) {
+                foundIndex = normalizedHeaders.findIndex(h => h === normalizedVariant);
+                if (foundIndex !== -1) break;
+            }
+
+            if (foundIndex === -1) {
+                for (const normalizedVariant of variants) {
+                    foundIndex = normalizedHeaders.findIndex(h => h.includes(normalizedVariant));
+                    if (foundIndex !== -1) break;
                 }
             }
             indices[key] = foundIndex;
@@ -246,6 +257,7 @@ class CsvFileProcessor {
             return index !== -1 ? headers[index] : field;
         });
 
+        this.processedFieldOrder = fieldsToProcess.slice();
         this.processedData = [newHeaders];
         
         // Remove linhas totalmente vazias
@@ -301,13 +313,43 @@ class CsvFileProcessor {
         const dataRows = this.processedData.slice(1);
         
         const columnIndices = {};
-        headers.forEach((h, i) => {
-            const norm = this.normalizeHeader(h);
-            const entry = Object.entries(CsvFileProcessor.FIELD_MAPPINGS).find(([k, v]) => 
-                v.input.some(inputField => norm.includes(this.normalizeHeader(inputField)))
-            );
-            if(entry) columnIndices[entry[0]] = i;
-        });
+        if (Array.isArray(this.processedFieldOrder) && this.processedFieldOrder.length === headers.length) {
+            this.processedFieldOrder.forEach((fieldKey, index) => {
+                if (fieldKey) {
+                    columnIndices[fieldKey] = index;
+                }
+            });
+        } else {
+            headers.forEach((h, i) => {
+                const norm = this.normalizeHeader(h);
+                let bestFieldKey = null;
+                let bestScore = -1;
+
+                for (const [fieldKey, mapping] of Object.entries(CsvFileProcessor.FIELD_MAPPINGS)) {
+                    const variants = [fieldKey, ...(mapping.input || [])];
+                    for (const variant of variants) {
+                        const normalizedVariant = this.normalizeHeader(variant);
+                        if (!normalizedVariant) continue;
+
+                        let score = -1;
+                        if (norm === normalizedVariant) {
+                            score = 1000 + normalizedVariant.length;
+                        } else if (norm.includes(normalizedVariant)) {
+                            score = normalizedVariant.length;
+                        }
+
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestFieldKey = fieldKey;
+                        }
+                    }
+                }
+
+                if (bestFieldKey && columnIndices[bestFieldKey] === undefined) {
+                    columnIndices[bestFieldKey] = i;
+                }
+            });
+        }
 
         const outputHeaders = ['firstname', 'lastname', 'username', 'email', 'Password'];
         
