@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda Unificada</title>
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- SheetJS para Importação de Excel -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
+    <style>
+        /* Personalização da Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c7c7c7; 
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8; 
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Classe para forçar maiúsculas visualmente */
+        .uppercase-input {
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans h-screen overflow-hidden">
+
+    <div class="flex flex-col md:flex-row h-full">
+        
+        <!-- Sidebar / Painel Lateral -->
+        <div class="w-full md:w-96 bg-white shadow-xl flex flex-col z-20 border-r border-gray-200 h-1/3 md:h-full">
+            <div class="p-6 bg-indigo-700 text-white flex-shrink-0">
+                <h1 class="text-2xl font-bold flex items-center gap-2">
+                    <i data-lucide="calendar" class="w-6 h-6"></i> AGENDA UNIFICADA
+                </h1>
+                <p class="text-indigo-200 text-sm mt-1 uppercase">Organize a sua vida num só lugar.</p>
+            </div>
+
+            <div class="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center flex-shrink-0">
+                <div>
+                    <h2 id="sidebar-date-title" class="text-lg font-bold text-gray-800 uppercase">CARREGANDO...</h2>
+                    <p id="sidebar-event-count" class="text-sm text-gray-500 uppercase">0 EVENTOS AGENDADOS</p>
+                </div>
+                <button onclick="openModal()" class="p-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition-transform hover:scale-105 active:scale-95">
+                    <i data-lucide="plus" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div id="sidebar-events-list" class="flex-1 overflow-y-auto p-4 space-y-3">
+                <!-- Eventos do dia selecionado serão renderizados aqui -->
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col h-2/3 md:h-full overflow-hidden">
+            <!-- Header da Vista Principal -->
+            <header class="bg-white border-b border-gray-200 p-4 flex justify-between items-center shadow-sm z-10 flex-shrink-0">
+                <div class="flex items-center gap-4">
+                    <h2 id="current-month-display" class="text-xl font-bold text-gray-800 uppercase"></h2>
+                    <div class="flex bg-gray-100 rounded-lg p-1 gap-1">
+                        <button onclick="changeMonth(-1)" class="p-1 hover:bg-white rounded shadow-sm transition-colors"><i data-lucide="chevron-left" class="w-5 h-5 text-gray-600"></i></button>
+                        <button onclick="goToToday()" class="px-3 text-sm font-medium hover:bg-white rounded shadow-sm transition-colors uppercase">HOJE</button>
+                        <button onclick="changeMonth(1)" class="p-1 hover:bg-white rounded shadow-sm transition-colors"><i data-lucide="chevron-right" class="w-5 h-5 text-gray-600"></i></button>
+                    </div>
+                </div>
+
+                <div class="flex gap-2">
+                    <button onclick="setViewMode('calendar')" id="btn-view-calendar" class="p-2 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium uppercase">
+                        <i data-lucide="grid" class="w-4 h-4"></i> <span class="hidden sm:inline">MÊS</span>
+                    </button>
+                    <button onclick="setViewMode('list')" id="btn-view-list" class="p-2 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium uppercase">
+                        <i data-lucide="list" class="w-4 h-4"></i> <span class="hidden sm:inline">LISTA</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Área Principal (Calendário ou Lista) -->
+            <div id="main-view-container" class="flex-1 overflow-y-auto bg-gray-50 p-4">
+                <!-- Conteúdo renderizado via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Novo Evento -->
+    <div id="event-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[90vh]" id="modal-content">
+            <div class="bg-indigo-700 p-4 flex justify-between items-center text-white flex-shrink-0">
+                <h3 class="font-bold text-lg uppercase">NOVO EVENTO</h3>
+                <button onclick="closeModal()" class="hover:bg-white/20 p-1 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            
+            <form id="event-form" onsubmit="handleAddEvent(event)" class="p-6 space-y-4 overflow-y-auto">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1 uppercase">TÍTULO</label>
+                    <input type="text" id="event-title" required placeholder="EX: REUNIÃO, CONSULTA..." class="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all uppercase-input" oninput="this.value = this.value.toUpperCase()">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1 uppercase">INÍCIO</label>
+                        <input type="time" id="event-time" required value="09:00" class="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1 uppercase">FIM</label>
+                        <input type="time" id="event-end-time" required value="10:00" class="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1 uppercase">CATEGORIA</label>
+                    <select id="event-category" onchange="toggleCustomCategory(this.value)" class="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none bg-white uppercase-input">
+                        <option value="trabalho">TRABALHO</option>
+                        <option value="pessoal">PESSOAL</option>
+                        <option value="saude">SAÚDE</option>
+                        <option value="estudo">ESTUDO</option>
+                        <option value="urgente">URGENTE</option>
+                        <option value="outros">OUTROS (ESCREVER...)</option>
+                    </select>
+                    <!-- Campo oculto para categoria personalizada -->
+                    <input type="text" id="event-custom-category" placeholder="DIGITE O NOME DA CATEGORIA" class="hidden w-full mt-2 rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none uppercase-input" oninput="this.value = this.value.toUpperCase()">
+                </div>
+
+                <!-- Seção de Contactos e Anexos -->
+                <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <label class="block text-xs font-bold text-gray-500 uppercase">PARTICIPANTES & ANEXOS</label>
+                        <div class="flex gap-2">
+                             <input type="file" id="excel-upload" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpload(this)">
+                             <button type="button" onclick="document.getElementById('excel-upload').click()" class="text-[10px] bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 flex items-center gap-1 transition-colors uppercase font-bold" title="Importar emails e telefones">
+                                <i data-lucide="file-spreadsheet" class="w-3 h-3"></i> EXCEL
+                             </button>
+                             <button type="button" onclick="openContactsModal()" class="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-200 flex items-center gap-1 transition-colors uppercase font-bold">
+                                <i data-lucide="users" class="w-3 h-3"></i> CONTACTOS
+                             </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1 uppercase flex items-center gap-1"><i data-lucide="mail" class="w-3 h-3"></i> EMAILS (Letras Minúsculas Permitidas)</label>
+                        <!-- Removido uppercase-input e o evento oninput para permitir minúsculas -->
+                        <textarea id="event-emails" rows="1" placeholder="email1@exemplo.com, email2@..." class="w-full rounded border-gray-300 border p-2 focus:ring-1 focus:ring-indigo-500 outline-none text-sm"></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1 uppercase flex items-center gap-1"><i data-lucide="message-circle" class="w-3 h-3 text-green-600"></i> WHATSAPP (AUTO +55)</label>
+                        <textarea id="event-whatsapp" rows="1" placeholder="21999999999, 11999999999" class="w-full rounded border-gray-300 border p-2 focus:ring-1 focus:ring-green-500 outline-none text-sm uppercase-input"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1 uppercase flex items-center gap-1"><i data-lucide="paperclip" class="w-3 h-3"></i> ANEXO (IMAGEM/DOC)</label>
+                        <input type="file" id="event-attachment" class="w-full text-xs text-gray-500 file:mr-2 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                        <p class="text-[9px] text-gray-400 mt-1 uppercase leading-tight">
+                            *O ARQUIVO SERÁ ANEXADO AUTOMATICAMENTE AO EMAIL SE O SERVIDOR LOCAL ESTIVER RODANDO.
+                        </p>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1 uppercase">DESCRIÇÃO (OPCIONAL)</label>
+                    <textarea id="event-description" rows="2" class="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none resize-none uppercase-input" placeholder="DETALHES ADICIONAIS..." oninput="this.value = this.value.toUpperCase()"></textarea>
+                </div>
+                
+                <div class="text-sm text-gray-500 bg-gray-50 p-3 rounded-lg flex items-center gap-2">
+                    <i data-lucide="calendar" class="w-4 h-4"></i>
+                    AGENDANDO PARA: <span id="modal-date-display" class="font-semibold text-indigo-700 uppercase"></span>
+                </div>
+
+                <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 uppercase">
+                    ADICIONAR À AGENDA
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Seleção de Contactos -->
+    <div id="contacts-modal" class="fixed inset-0 bg-black/50 z-[60] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[80vh]">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                <h3 class="font-bold text-gray-800 uppercase">MEUS CONTACTOS</h3>
+                <div class="flex gap-2">
+                    <button onclick="openTrashModal()" class="text-gray-500 hover:text-gray-700 p-1" title="Lixeira"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                    <button onclick="selectAllContacts()" class="text-blue-500 hover:text-blue-700 p-1" title="Selecionar Todos"><i data-lucide="check-square" class="w-5 h-5"></i></button>
+                    <button onclick="deleteAllSelectedContacts()" class="text-red-500 hover:text-red-700 p-1" title="Excluir Tudo"><i data-lucide="trash" class="w-5 h-5"></i></button>
+                    <button onclick="closeContactsModal()" class="text-gray-500 hover:text-gray-700"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+            </div>
+            <div class="p-2 border-b border-gray-200">
+                <input type="text" id="contact-search" placeholder="PESQUISAR..." class="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-indigo-500 uppercase-input" oninput="this.value = this.value.toUpperCase(); filterContacts()">
+            </div>
+            <div id="contacts-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+                <p class="text-center text-gray-400 text-sm py-4 uppercase">NENHUM CONTACTO ENCONTRADO.</p>
+            </div>
+            <div class="p-3 border-t border-gray-200 flex justify-end">
+                <button onclick="addSelectedContacts()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 uppercase">CONFIRMAR</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal da Lixeira de Contactos -->
+    <div id="trash-modal" class="fixed inset-0 bg-black/50 z-[60] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[80vh]">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                <h3 class="font-bold text-gray-800 uppercase">LIXEIRA DE CONTACTOS</h3>
+                <button onclick="closeTrashModal()" class="text-gray-500 hover:text-gray-700"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div id="trash-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+                <p class="text-center text-gray-400 text-sm py-4 uppercase">NENHUM CONTACTO NA LIXEIRA.</p>
+            </div>
+            <div class="p-3 border-t border-gray-200 flex justify-between">
+                <button onclick="emptyTrash()" class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 uppercase">ESVAZIAR LIXEIRA</button>
+                <button onclick="closeTrashModal()" class="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 uppercase">FECHAR</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        // --- Configurações e Dados ---
+        const STANDARD_CATEGORIES = {
+            trabalho: { label: 'TRABALHO', color: 'bg-blue-100 text-blue-700', icon: 'briefcase' },
+            pessoal:  { label: 'PESSOAL', color: 'bg-green-100 text-green-700', icon: 'user' },
+            saude:    { label: 'SAÚDE', color: 'bg-red-100 text-red-700', icon: 'heart' },
+            estudo:   { label: 'ESTUDO', color: 'bg-purple-100 text-purple-700', icon: 'book-open' },
+            urgente:  { label: 'URGENTE', color: 'bg-orange-100 text-orange-700', icon: 'alert-circle' },
+        };
+
+        function getCategoryDetails(key) {
+            if (STANDARD_CATEGORIES[key]) {
+                return STANDARD_CATEGORIES[key];
+            }
+            return { label: key.toUpperCase(), color: 'bg-slate-100 text-slate-700', icon: 'tag' };
+        }
+
+        let state = {
+            currentDate: new Date(),
+            selectedDate: new Date(),
+            events: [],
+            viewMode: 'calendar'
+        };
+
+        // --- IndexedDB Management (MELHORADO PARA ARQUIVOS) ---
+        const DB_NAME = 'AgendaUnificadaDB';
+        const DB_VERSION = 4; // Versão atualizada para suportar soft delete de contactos
+        let db;
+
+        async function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                
+                request.onerror = (e) => reject(e.target.error);
+                
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    // Store de contactos
+                    if (!db.objectStoreNames.contains('unified_contacts')) {
+                        const store = db.createObjectStore('unified_contacts', { keyPath: 'value' });
+                        store.createIndex('type', 'type', { unique: false });
+                    }
+                    // Novo Store para Anexos (Arquivos grandes)
+                    if (!db.objectStoreNames.contains('event_attachments')) {
+                        db.createObjectStore('event_attachments', { keyPath: 'eventId' });
+                    }
+                    // Migração para versão 4: adicionar campo deleted aos contactos existentes
+                    if (e.oldVersion < 4) {
+                        const tx = e.target.transaction;
+                        const store = tx.objectStore('unified_contacts');
+                        const request = store.getAll();
+                        request.onsuccess = () => {
+                            const contacts = request.result;
+                            contacts.forEach(c => {
+                                if (c.deleted === undefined) {
+                                    c.deleted = false;
+                                    store.put(c);
+                                }
+                            });
+                        };
+                    }
+                };
+                
+                request.onsuccess = (e) => { db = e.target.result; resolve(db); };
+            });
+        }
+
+        async function saveContact(value, type, name = null) {
+            if (!db || !value) return;
+            if (type === 'email' && !value.includes('@')) return;
+            if (type === 'whatsapp' && value.length < 8) return;
+
+            const tx = db.transaction('unified_contacts', 'readwrite');
+            const store = tx.objectStore('unified_contacts');
+            let finalValue = value.trim(); 
+            if (type === 'whatsapp') finalValue = formatWhatsAppNumber(value);
+
+            try {
+                await store.put({ value: finalValue, type: type, name: name, addedAt: new Date(), deleted: false });
+            } catch (e) { console.log("Erro ao salvar contacto:", e); }
+        }
+
+        // Funções para gerenciar Anexos no IndexedDB
+        async function saveAttachmentToDB(eventId, fileData) {
+            if (!db || !fileData) return;
+            const tx = db.transaction('event_attachments', 'readwrite');
+            const store = tx.objectStore('event_attachments');
+            // Salvamos apenas o dado bruto linkado ao ID do evento
+            await store.put({ eventId: eventId, data: fileData });
+        }
+
+        async function getAttachmentFromDB(eventId) {
+            if (!db) return null;
+            return new Promise((resolve) => {
+                const tx = db.transaction('event_attachments', 'readonly');
+                const store = tx.objectStore('event_attachments');
+                const request = store.get(eventId);
+                request.onsuccess = () => resolve(request.result ? request.result.data : null);
+                request.onerror = () => resolve(null);
+            });
+        }
+
+        async function deleteAttachmentFromDB(eventId) {
+            if (!db) return;
+            const tx = db.transaction('event_attachments', 'readwrite');
+            const store = tx.objectStore('event_attachments');
+            await store.delete(eventId);
+        }
+
+        async function getAllContacts(includeDeleted = false) {
+            if (!db) return [];
+            return new Promise((resolve) => {
+                const tx = db.transaction('unified_contacts', 'readonly');
+                const store = tx.objectStore('unified_contacts');
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    const all = request.result;
+                    const filtered = includeDeleted ? all : all.filter(c => !c.deleted);
+                    resolve(filtered);
+                };
+                request.onerror = () => resolve([]);
+            });
+        }
+
+        async function softDeleteContact(value) {
+            if (!db || !value) return;
+            const tx = db.transaction('unified_contacts', 'readwrite');
+            const store = tx.objectStore('unified_contacts');
+            const contact = await new Promise(resolve => {
+                const req = store.get(value);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => resolve(null);
+            });
+            if (contact) {
+                contact.deleted = true;
+                await store.put(contact);
+            }
+        }
+
+        async function recoverContact(value) {
+            if (!db || !value) return;
+            const tx = db.transaction('unified_contacts', 'readwrite');
+            const store = tx.objectStore('unified_contacts');
+            const contact = await new Promise(resolve => {
+                const req = store.get(value);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => resolve(null);
+            });
+            if (contact) {
+                contact.deleted = false;
+                await store.put(contact);
+            }
+        }
+
+        async function permanentlyDeleteContact(value) {
+            if (!db || !value) return;
+            const tx = db.transaction('unified_contacts', 'readwrite');
+            const store = tx.objectStore('unified_contacts');
+            await store.delete(value);
+        }
+
+        async function getDeletedContacts() {
+            const all = await getAllContacts(true);
+            return all.filter(c => c.deleted);
+        }
+
+        // --- Inicialização ---
+        window.onload = async () => {
+            loadEvents();
+            renderAll();
+            await initDB();
+        };
+
+        function loadEvents() {
+            const saved = localStorage.getItem('unifiedAgendaEventsHTML');
+            if (saved) {
+                state.events = JSON.parse(saved);
+                // Limpeza: remove dados antigos base64 do localStorage para liberar espaço
+                let cleaned = false;
+                state.events.forEach(ev => {
+                    if (ev.attachmentData) {
+                        ev.attachmentData = null; // Remove do objeto em memória/local
+                        cleaned = true;
+                    }
+                });
+                if (cleaned) saveEvents();
+            }
+        }
+
+        function saveEvents() {
+            // Salva no localStorage APENAS os dados leves (sem o anexo binário)
+            const eventsToSave = state.events.map(ev => {
+                const { attachmentData, ...rest } = ev; // Remove attachmentData se existir
+                return rest;
+            });
+            localStorage.setItem('unifiedAgendaEventsHTML', JSON.stringify(eventsToSave));
+            renderAll();
+        }
+
+        // --- Lógica de UI ---
+        function toggleCustomCategory(val) {
+            const customInput = document.getElementById('event-custom-category');
+            if (val === 'outros') {
+                customInput.classList.remove('hidden');
+                customInput.required = true;
+                customInput.focus();
+            } else {
+                customInput.classList.add('hidden');
+                customInput.required = false;
+            }
+        }
+
+        function renderAll() {
+            renderHeader();
+            renderSidebar();
+            state.viewMode === 'calendar' ? renderCalendarView() : renderListView();
+            updateViewButtons();
+            lucide.createIcons();
+        }
+
+        function renderHeader() {
+            const options = { month: 'long', year: 'numeric' };
+            document.getElementById('current-month-display').textContent = state.currentDate.toLocaleDateString('pt-PT', options).toUpperCase();
+        }
+
+        function updateViewButtons() {
+            const btnCal = document.getElementById('btn-view-calendar');
+            const btnList = document.getElementById('btn-view-list');
+            const active = "bg-indigo-100 text-indigo-700";
+            const inactive = "hover:bg-gray-100 text-gray-600";
+            
+            btnCal.className = `p-2 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium uppercase ${state.viewMode === 'calendar' ? active : inactive}`;
+            btnList.className = `p-2 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium uppercase ${state.viewMode === 'list' ? active : inactive}`;
+        }
+
+        function renderSidebar() {
+            const options = { weekday: 'long', day: 'numeric', month: 'long' };
+            document.getElementById('sidebar-date-title').textContent = state.selectedDate.toLocaleDateString('pt-PT', options).toUpperCase();
+            
+            const dateKey = formatDateKey(state.selectedDate);
+            // CORREÇÃO AQUI: de constWZ para const dayEvents
+            const dayEvents = state.events.filter(ev => ev.date === dateKey).sort((a, b) => a.time.localeCompare(b.time));
+            document.getElementById('sidebar-event-count').textContent = `${dayEvents.length} EVENTOS AGENDADOS`;
+            
+            const container = document.getElementById('sidebar-events-list');
+            container.innerHTML = '';
+
+            if (dayEvents.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-10 text-gray-400 fade-in">
+                        <div class="bg-gray-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <i data-lucide="calendar" class="w-8 h-8 opacity-50"></i>
+                        </div>
+                        <p class="uppercase">SEM EVENTOS.</p>
+                        <button onclick="openModal()" class="text-indigo-600 text-sm font-medium mt-2 hover:underline uppercase">ADICIONAR EVENTO</button>
+                    </div>`;
+            } else {
+                dayEvents.forEach(ev => {
+                    const cat = getCategoryDetails(ev.category);
+                    const bgClass = cat.color.split(' ')[0].replace('bg-', '');
+                    const timeDisplay = ev.endTime ? `${ev.time} - ${ev.endTime}` : ev.time;
+
+                    const el = document.createElement('div');
+                    el.className = 'group bg-white border border-gray-100 rounded-xl p-3 shadow-sm hover:shadow-md transition-all flex gap-3 relative fade-in';
+                    el.innerHTML = `
+                        <div class="w-1 rounded-full bg-${bgClass}"></div>
+                        <div class="flex-1">
+                            <div class="flex justify-between items-start">
+                                <h3 class="font-semibold text-gray-800 uppercase">${ev.title}</h3>
+                                <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    ${ev.emails ? `<button onclick="sendEmail(${ev.id})" title="ENVIAR EMAIL" class="text-gray-400 hover:text-indigo-600 p-1"><i data-lucide="mail" class="w-4 h-4"></i></button>` : ''}
+                                    ${ev.whatsapp ? `<button onclick="sendWhatsApp(${ev.id})" title="ENVIAR WHATSAPP" class="text-gray-400 hover:text-green-600 p-1"><i data-lucide="message-circle" class="w-4 h-4"></i></button>` : ''}
+                                    <button onclick="deleteEvent(${ev.id})" class="text-gray-400 hover:text-red-500 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                                <i data-lucide="clock" class="w-3 h-3"></i> ${timeDisplay}
+                                <span class="text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${cat.color} uppercase"><i data-lucide="${cat.icon}" class="w-3 h-3"></i> ${cat.label}</span>
+                            </div>
+                            ${ev.description ? `<p class="text-sm text-gray-600 mt-2 pl-5 border-l-2 border-gray-100 uppercase">${ev.description}</p>` : ''}
+                            
+                            <div class="flex flex-col mt-2 gap-1">
+                                ${ev.emails ? `<p class="text-[10px] text-indigo-500 flex items-center gap-1"><i data-lucide="mail" class="w-3 h-3"></i> ${ev.emails.split(',').length} EMAIL(S)</p>` : ''}
+                                ${ev.whatsapp ? `<p class="text-[10px] text-green-600 flex items-center gap-1 uppercase"><i data-lucide="message-circle" class="w-3 h-3"></i> ${ev.whatsapp.split(',').length} WHATSAPP(S)</p>` : ''}
+                                ${ev.attachmentName ? `<p class="text-[10px] text-gray-500 flex items-center gap-1 uppercase"><i data-lucide="paperclip" class="w-3 h-3"></i> ${ev.attachmentName}</p>` : ''}
+                            </div>
+                        </div>`;
+                    container.appendChild(el);
+                    el.querySelector('.w-1').className = `w-1 rounded-full ${cat.color.split(' ')[0]}`;
+                });
+            }
+        }
+
+        function renderCalendarView() {
+            const container = document.getElementById('main-view-container');
+            const year = state.currentDate.getFullYear();
+            const month = state.currentDate.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const firstDay = new Date(year, month, 1).getDay();
+
+            let html = `
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden fade-in">
+                    <div class="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
+                        ${['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map(d => `<div class="py-3 text-center text-sm font-semibold text-gray-500 uppercase tracking-wider">${d}</div>`).join('')}
+                    </div>
+                    <div class="grid grid-cols-7 bg-gray-200 gap-px border-b border-gray-200">`;
+
+            for (let i = 0; i < firstDay; i++) html += `<div class="h-24 bg-gray-50/50 border border-gray-100 bg-white"></div>`;
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                const date = new Date(year, month, i);
+                const dateKey = formatDateKey(date);
+                const isSelected = dateKey === formatDateKey(state.selectedDate);
+                const isToday = dateKey === formatDateKey(new Date());
+                const dayEvents = state.events.filter(ev => ev.date === dateKey);
+                
+                let eventsHtml = '';
+                dayEvents.slice(0, 3).forEach(ev => {
+                    const cat = getCategoryDetails(ev.category);
+                    eventsHtml += `<div class="text-[10px] truncate px-1 rounded mb-0.5 ${cat.color} uppercase">${ev.time} ${ev.title}</div>`;
+                });
+                if (dayEvents.length > 3) eventsHtml += `<div class="text-[10px] text-gray-400 pl-1 uppercase">+ ${dayEvents.length - 3} MAIS</div>`;
+
+                html += `
+                    <div onclick="selectDate(${year}, ${month}, ${i})" 
+                         class="h-24 border border-gray-100 p-2 cursor-pointer transition-colors relative hover:bg-indigo-50 bg-white
+                         ${isSelected ? '!bg-indigo-50 ring-2 ring-indigo-500 ring-inset z-10' : ''} ${isToday ? '!bg-blue-50' : ''}">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="text-sm font-semibold w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-600 text-white' : 'text-gray-700'}">${i}</span>
+                            ${dayEvents.length > 0 ? `<span class="text-xs font-bold text-indigo-600 bg-indigo-100 px-1.5 rounded-full">${dayEvents.length}</span>` : ''}
+                        </div>
+                        <div class="overflow-hidden h-14">${eventsHtml}</div>
+                    </div>`;
+            }
+            html += `</div></div>`;
+            container.innerHTML = html;
+        }
+
+        function renderListView() {
+            const container = document.getElementById('main-view-container');
+            const sortedEvents = [...state.events].sort((a, b) => {
+                if (a.date !== b.date) return a.date.localeCompare(b.date);
+                return a.time.localeCompare(b.time);
+            });
+
+            if (sortedEvents.length === 0) {
+                container.innerHTML = `<p class="text-center text-gray-500 mt-10 uppercase">NÃO HÁ EVENTOS FUTUROS AGENDADOS.</p>`;
+                return;
+            }
+
+            let html = '<div class="max-w-3xl mx-auto space-y-6 fade-in">';
+            let lastDate = '';
+
+            sortedEvents.forEach(ev => {
+                const showHeader = ev.date !== lastDate;
+                lastDate = ev.date;
+                const cat = getCategoryDetails(ev.category);
+                const dateObj = new Date(ev.date + 'T00:00:00');
+                
+                if (showHeader) {
+                    html += `<h3 class="text-lg font-bold text-indigo-900 mb-3 sticky top-0 bg-gray-50 py-2 z-10 border-b border-gray-200 uppercase">
+                                ${dateObj.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' })}
+                             </h3>`;
+                }
+
+                html += `
+                    <div class="bg-white rounded-lg p-4 shadow-sm border border-gray-100 mb-2 flex items-center gap-4 hover:shadow-md transition-shadow group">
+                        <div class="text-center min-w-[3rem]">
+                            <span class="block text-xl font-bold text-gray-800">${ev.time}</span>
+                            ${ev.endTime ? `<span class="block text-xs text-gray-400">${ev.endTime}</span>` : ''}
+                        </div>
+                        <div class="flex-1 border-l-2 border-gray-100 pl-4">
+                            <div class="flex justify-between">
+                                <h4 class="font-semibold text-gray-800 uppercase">${ev.title}</h4>
+                                <span class="text-xs px-2 py-1 rounded-full flex items-center gap-1 ${cat.color} uppercase"><i data-lucide="${cat.icon}" class="w-3 h-3"></i> ${cat.label}</span>
+                            </div>
+                            ${ev.description ? `<p class="text-sm text-gray-500 mt-1 uppercase">${ev.description}</p>` : ''}
+                            <div class="flex flex-wrap gap-3 mt-2">
+                                ${ev.emails ? `<div class="text-xs text-gray-400 flex items-center gap-1"><i data-lucide="mail" class="w-3 h-3"></i> ${ev.emails}</div>` : ''}
+                                ${ev.whatsapp ? `<div class="text-xs text-green-600 flex items-center gap-1 uppercase"><i data-lucide="message-circle" class="w-3 h-3"></i> ${ev.whatsapp}</div>` : ''}
+                                ${ev.attachmentName ? `<div class="text-xs text-gray-500 flex items-center gap-1 uppercase"><i data-lucide="paperclip" class="w-3 h-3"></i> ${ev.attachmentName}</div>` : ''}
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            ${ev.emails ? `<button onclick="sendEmail(${ev.id})" title="ENVIAR EMAIL" class="text-gray-300 hover:text-indigo-600 p-1"><i data-lucide="mail" class="w-4 h-4"></i></button>` : ''}
+                            ${ev.whatsapp ? `<button onclick="sendWhatsApp(${ev.id})" title="ENVIAR WHATSAPP" class="text-gray-300 hover:text-green-600 p-1"><i data-lucide="message-circle" class="w-4 h-4"></i></button>` : ''}
+                            <button onclick="deleteEvent(${ev.id})" class="text-gray-300 hover:text-red-500 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                    </div>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // --- Helpers ---
+        function formatDateKey(date) {
+            const offset = date.getTimezoneOffset() * 60000;
+            return new Date(date.getTime() - offset).toISOString().split('T')[0];
+        }
+
+        function changeMonth(delta) {
+            state.currentDate.setMonth(state.currentDate.getMonth() + delta);
+            renderAll();
+        }
+
+        function goToToday() {
+            state.currentDate = new Date();
+            state.selectedDate = new Date();
+            renderAll();
+        }
+
+        function setViewMode(mode) {
+            state.viewMode = mode;
+            renderAll();
+        }
+
+        function selectDate(year, month, day) {
+            state.selectedDate = new Date(year, month, day);
+            renderAll();
+        }
+
+        async function deleteEvent(id) {
+            if(confirm('TEM A CERTEZA QUE DESEJA ELIMINAR ESTE EVENTO?')) {
+                state.events = state.events.filter(ev => ev.id !== id);
+                saveEvents();
+                // Também deleta o anexo do banco de dados para não ocupar espaço
+                await deleteAttachmentFromDB(id);
+            }
+        }
+
+        function formatWhatsAppNumber(num) {
+            let clean = num.replace(/\D/g, '');
+            if (!clean) return '';
+            if (clean.length === 10 || clean.length === 11) return '55' + clean;
+            return clean;
+        }
+
+        function dataURLToBlob(dataURL) {
+            const arr = dataURL.split(',');
+            const mime = arr[0].match(/:(.*?);/)[1];
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new Blob([u8arr], { type: mime });
+        }
+
+        async function sendEmail(id) {
+            const event = state.events.find(ev => ev.id === id);
+            if (!event || !event.emails) return;
+
+            // Feedback visual
+            const originalTitle = document.title;
+            document.title = "ENVIANDO...";
+
+            const subject = `CONVITE: ${event.title}`;
+            const dateFormatted = new Date(event.date).toLocaleDateString('pt-PT');
+            const timeInfo = event.endTime ? `${event.time} ÀS ${event.endTime}` : event.time;
+            
+            const bodyText = `OLÁ,\n\nVOCÊ FOI CONVIDADO PARA O SEGUINTE EVENTO:\n\nEVENTO: ${event.title}\nDATA: ${dateFormatted}\nHORA: ${timeInfo}\n\nDESCRIÇÃO: ${event.description || ''}\n\nCUMPRIMENTOS.`;
+
+            // Tentar enviar via servidor local
+            try {
+                const formData = new FormData();
+                formData.append('to', event.emails);
+                formData.append('subject', subject);
+                formData.append('body', bodyText);
+                
+                // Recupera anexo do Banco de Dados
+                let attachmentData = await getAttachmentFromDB(id);
+                // Fallback para versão antiga
+                if (!attachmentData && event.attachmentData) attachmentData = event.attachmentData;
+
+                if (attachmentData && event.attachmentName) {
+                    const blob = dataURLToBlob(attachmentData);
+                    formData.append('attachment', blob, event.attachmentName);
+                }
+
+                // IMPORTANTE: Tenta contactar o servidor local
+                const res = await fetch('http://localhost:3000/send-email', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (res.ok) {
+                    alert('EMAIL ENVIADO COM SUCESSO PELO SERVIDOR!');
+                } else {
+                    throw new Error('Servidor retornou erro');
+                }
+            } catch (e) {
+                console.log('Servidor offline ou erro de upload:', e);
+                // Se falhar (servidor desligado), avisa o usuário sobre o anexo
+                let msg = 'O SERVIDOR LOCAL NÃO ESTÁ RODANDO.\nO email será aberto no seu aplicativo padrão, MAS O ANEXO NÃO SERÁ INCLUÍDO automaticamente por limitações de segurança do navegador.\n\nPara enviar com anexo, execute "npm start" na pasta do projeto.';
+                if (event.attachmentName) alert(msg);
+                
+                // Fallback para mailto
+                const body = encodeURIComponent(bodyText);
+                window.open(`mailto:${event.emails}?subject=${encodeURIComponent(subject)}&body=${body}`);
+            } finally {
+                document.title = originalTitle;
+            }
+        }
+
+        function sendWhatsApp(id) {
+            const event = state.events.find(ev => ev.id === id);
+            if (!event || !event.whatsapp) return;
+
+            const dateFormatted = new Date(event.date).toLocaleDateString('pt-PT');
+            const timeInfo = event.endTime ? `${event.time} ÀS ${event.endTime}` : event.time;
+            const text = encodeURIComponent(`*CONVITE: ${event.title}*\nDATA: ${dateFormatted}\nHORA: ${timeInfo}\nDESCRIÇÃO: ${event.description || ''}`);
+
+            const numbers = event.whatsapp.split(',');
+            if(numbers.length > 0) {
+                const firstNum = numbers[0].trim();
+                window.open(`https://wa.me/${firstNum}?text=${text}`, '_blank');
+            }
+        }
+
+        // --- Lógica Excel & Contactos ---
+        function handleExcelUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
+                    
+                    if (rows.length < 2) {
+                        alert("O ficheiro Excel deve ter pelo menos uma linha de cabeçalhos e uma linha de dados.");
+                        return;
+                    }
+                    
+                    const headers = rows[0].map(h => String(h).trim().toLowerCase());
+                    const nameIndex = headers.indexOf('nomes');
+                    const emailIndex = headers.indexOf('e-mail');
+                    
+                    if (nameIndex === -1 || emailIndex === -1) {
+                        alert("O ficheiro Excel deve ter colunas 'Nomes' e 'E-MAIL'.");
+                        return;
+                    }
+                    
+                    let countEmail = 0;
+                    
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i];
+                        const name = row[nameIndex] ? String(row[nameIndex]).trim() : '';
+                        const email = row[emailIndex] ? String(row[emailIndex]).trim() : '';
+                        
+                        if (email && email.includes('@')) {
+                            saveContact(email, 'email', name);
+                            countEmail++;
+                        }
+                    }
+                    
+                    alert(`IMPORTAÇÃO CONCLUÍDA!\nEMAILS: ${countEmail}`);
+                    input.value = '';
+                } catch (err) { alert("ERRO AO LER O FICHEIRO EXCEL."); }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        let currentContacts = [];
+        async function openContactsModal() {
+            const modal = document.getElementById('contacts-modal');
+            currentContacts = await getAllContacts();
+            currentContacts.sort((a, b) => a.value.localeCompare(b.value));
+            renderContactsList(currentContacts);
+            modal.classList.remove('hidden');
+        }
+        function closeContactsModal() { document.getElementById('contacts-modal').classList.add('hidden'); }
+        
+        function renderContactsList(contacts) {
+            const list = document.getElementById('contacts-list');
+            list.innerHTML = '';
+            if (contacts.length === 0) { list.innerHTML = '<p class="text-center text-gray-400 text-sm py-4 uppercase">NENHUM CONTACTO ENCONTRADO.</p>'; return; }
+            contacts.forEach(c => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer border-b border-gray-100 last:border-0';
+                const icon = c.type === 'email' ? `<i data-lucide="mail" class="w-4 h-4 text-indigo-500"></i>` : `<i data-lucide="message-circle" class="w-4 h-4 text-green-500"></i>`;
+                item.onclick = (e) => { if(e.target.type !== 'checkbox' && !e.target.closest('.delete-btn')) { const cb = item.querySelector('input'); cb.checked = !cb.checked; } };
+                const displayText = c.name ? `${c.name} (${c.value})` : c.value;
+                item.innerHTML = `
+                    <input type="checkbox" value="${c.value}" data-type="${c.type}" class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500">
+                    <div class="flex items-center gap-2 flex-1">${icon}<span class="text-sm text-gray-700 break-all">${displayText}</span></div>
+                    <button onclick="softDeleteContact('${c.value}'); openContactsModal();" class="delete-btn text-gray-400 hover:text-red-500 p-1" title="Excluir"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                `;
+                list.appendChild(item);
+            });
+            lucide.createIcons();
+        }
+
+        function filterContacts() {
+            const term = document.getElementById('contact-search').value.toUpperCase();
+            const filtered = currentContacts.filter(c => c.value.toUpperCase().includes(term));
+            renderContactsList(filtered);
+        }
+
+        function addSelectedContacts() {
+            const checkboxes = document.querySelectorAll('#contacts-list input[type="checkbox"]:checked');
+            let emails = [], phones = [];
+            checkboxes.forEach(cb => { if(cb.dataset.type === 'email') emails.push(cb.value); else phones.push(cb.value); });
+            
+            if (emails.length > 0) {
+                const emailInput = document.getElementById('event-emails');
+                let val = emailInput.value.trim();
+                if (val && !val.endsWith(',')) val += ', ';
+                emailInput.value = (val + emails.join(', '));
+            }
+            if (phones.length > 0) {
+                const waInput = document.getElementById('event-whatsapp');
+                let val = waInput.value.trim();
+                if (val && !val.endsWith(',')) val += ', ';
+                waInput.value = val + phones.join(', ');
+            }
+            closeContactsModal();
+        }
+
+        async function deleteAllSelectedContacts() {
+            const checkboxes = document.querySelectorAll('#contacts-list input[type="checkbox"]:checked');
+            if (checkboxes.length === 0) {
+                alert('SELECIONE PELO MENOS UM CONTACTO PARA EXCLUIR.');
+                return;
+            }
+            if (!confirm('TEM CERTEZA QUE DESEJA EXCLUIR OS CONTACTOS SELECIONADOS? ELES PODERÃO SER RECUPERADOS DA LIXEIRA.')) return;
+            for (let cb of checkboxes) {
+                await softDeleteContact(cb.value);
+            }
+            openContactsModal(); // Recarregar a lista
+        }
+
+        function selectAllContacts() {
+            const checkboxes = document.querySelectorAll('#contacts-list input[type="checkbox"]');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            checkboxes.forEach(cb => cb.checked = !allChecked);
+        }
+
+        async function openTrashModal() {
+            const modal = document.getElementById('trash-modal');
+            const deletedContacts = await getDeletedContacts();
+            renderTrashList(deletedContacts);
+            modal.classList.remove('hidden');
+        }
+
+        function closeTrashModal() {
+            document.getElementById('trash-modal').classList.add('hidden');
+        }
+
+        function renderTrashList(contacts) {
+            const list = document.getElementById('trash-list');
+            list.innerHTML = '';
+            if (contacts.length === 0) { list.innerHTML = '<p class="text-center text-gray-400 text-sm py-4 uppercase">NENHUM CONTACTO NA LIXEIRA.</p>'; return; }
+            contacts.forEach(c => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center gap-3 p-2 hover:bg-gray-50 rounded border-b border-gray-100 last:border-0';
+                const icon = c.type === 'email' ? `<i data-lucide="mail" class="w-4 h-4 text-indigo-500"></i>` : `<i data-lucide="message-circle" class="w-4 h-4 text-green-500"></i>`;
+                const displayText = c.name ? `${c.name} (${c.value})` : c.value;
+                item.innerHTML = `
+                    <div class="flex items-center gap-2 flex-1">${icon}<span class="text-sm text-gray-700 break-all">${displayText}</span></div>
+                    <button onclick="recoverContact('${c.value}'); openTrashModal();" class="text-green-500 hover:text-green-700 p-1" title="Recuperar"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></button>
+                    <button onclick="permanentlyDeleteContact('${c.value}'); openTrashModal();" class="text-red-500 hover:text-red-700 p-1" title="Excluir Permanentemente"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                `;
+                list.appendChild(item);
+            });
+            lucide.createIcons();
+        }
+
+        async function emptyTrash() {
+            if (!confirm('TEM CERTEZA QUE DESEJA ESVAZIAR A LIXEIRA? ESTA AÇÃO NÃO PODE SER DESFEITA.')) return;
+            const deletedContacts = await getDeletedContacts();
+            for (let c of deletedContacts) {
+                await permanentlyDeleteContact(c.value);
+            }
+            openTrashModal(); // Recarregar
+        }
+
+        // --- Lógica Modal Principal ---
+        const modal = document.getElementById('event-modal');
+        const modalContent = document.getElementById('modal-content');
+
+        function openModal() {
+            document.getElementById('modal-date-display').textContent = state.selectedDate.toLocaleDateString('pt-PT').toUpperCase();
+            document.getElementById('event-form').reset();
+            document.getElementById('event-time').value = "09:00";
+            document.getElementById('event-end-time').value = "10:00";
+            document.getElementById('event-category').value = 'trabalho';
+            toggleCustomCategory('trabalho');
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.classList.remove('opacity-0'); modalContent.classList.remove('scale-95'); modalContent.classList.add('scale-100'); }, 10);
+        }
+
+        function closeModal() {
+            modal.classList.add('opacity-0'); modalContent.classList.remove('scale-100'); modalContent.classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        async function handleAddEvent(e) {
+            e.preventDefault();
+            
+            const title = document.getElementById('event-title').value.toUpperCase();
+            const time = document.getElementById('event-time').value;
+            const endTime = document.getElementById('event-end-time').value;
+            let category = document.getElementById('event-category').value;
+            
+            // Lógica Categoria Personalizada
+            if (category === 'outros') {
+                const customVal = document.getElementById('event-custom-category').value.trim().toUpperCase();
+                if (customVal) category = customVal; // Salva o nome personalizado
+                else category = 'OUTROS';
+            }
+
+            const description = document.getElementById('event-description').value.toUpperCase();
+            const emailsRaw = document.getElementById('event-emails').value;
+            const waRaw = document.getElementById('event-whatsapp').value;
+            const fileInput = document.getElementById('event-attachment');
+            const attachmentName = fileInput.files.length > 0 ? fileInput.files[0].name : null;
+            let attachmentData = null;
+            
+            // Tratamento do Anexo
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                attachmentData = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            if (!title) return;
+
+            // Salvar contatos novos
+            if (emailsRaw) {
+                const list = emailsRaw.split(',').map(e => e.trim()).filter(e => e);
+                for (const item of list) await saveContact(item, 'email');
+            }
+
+            let finalWa = '';
+            if (waRaw) {
+                const list = waRaw.split(',').map(e => e.trim()).filter(e => e);
+                let formattedList = [];
+                for (const item of list) {
+                    const fmt = formatWhatsAppNumber(item);
+                    if(fmt) { formattedList.push(fmt); await saveContact(fmt, 'whatsapp'); }
+                }
+                finalWa = formattedList.join(',');
+            }
+
+            const eventId = Date.now();
+
+            // Se houver anexo, salvamos no IndexedDB (que suporta arquivos grandes)
+            if (attachmentData) {
+                await saveAttachmentToDB(eventId, attachmentData);
+            }
+
+            const newEvent = {
+                id: eventId,
+                date: formatDateKey(state.selectedDate),
+                title, time, endTime, category, description,
+                emails: emailsRaw,
+                whatsapp: finalWa,
+                attachmentName,
+                // NÃO salvamos attachmentData aqui para não lotar o localStorage
+            };
+
+            state.events.push(newEvent);
+            saveEvents();
+            closeModal();
+        }
+
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    </script>
+</body>
+</html>
