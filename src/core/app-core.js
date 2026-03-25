@@ -128,6 +128,21 @@ const ActionBus = {
     _handlers: {
         'pick-folder':      () => document.getElementById('file-input')?.click(),
         'pick-spreadsheet': () => document.getElementById('csv-file-input')?.click(),
+        'open-zipador-piquet': () => {
+            if (window.ZipadorWebApp && typeof window.ZipadorWebApp.openSection === 'function') {
+                window.ZipadorWebApp.openSection();
+                return;
+            }
+            UI.toast('Módulo Zipador Web indisponível no momento.', 'error');
+        },
+        'zipador-back-upload': () => {
+            if (window.ZipadorWebApp && typeof window.ZipadorWebApp.backToUpload === 'function') {
+                window.ZipadorWebApp.backToUpload();
+                return;
+            }
+            document.getElementById('section-zipador-web')?.classList.add('hidden-section');
+            UI.showSection(DOM.sectionUpload);
+        },
         'close-modal':      () => Categories.closeModal(),
         'add-category':     () => Categories.addCategory(),
         'reset-categories': () => Storage.reset(),
@@ -1121,6 +1136,9 @@ document.addEventListener('DOMContentLoaded', () => {
         App.init();
         CsvApp.init();
         ReportApp.init();
+        if (window.ZipadorWebApp && typeof window.ZipadorWebApp.init === 'function') {
+            window.ZipadorWebApp.init();
+        }
     } catch (err) {
         Logger.error('Falha durante o bootstrap da aplicação', err);
         UI.toast('Falha ao iniciar a aplicação. Atualize a página e tente novamente.', 'error');
