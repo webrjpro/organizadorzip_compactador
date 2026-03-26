@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inserir QR Code em PDF</title>
+    <!--script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script-->
+    <!-- Adiciona jsQR para leitura de QRCode em canvas -->
+    <!--script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script-->
+    <script src="./libs/pdf-lib.min.js"></script>
+    <script src="./libs/pdf.min.js"></script>
+    <script src="./libs/jszip.min.js"></script>
+    <!-- Adiciona jsQR para leitura de QRCode em canvas -->
+    <script src="./libs/jsQR.js"></script>
+    <style>
+        :root {
+            --bg-1: #071b31;
+            --bg-2: #0b4e7f;
+            --bg-3: #10335d;
+            --surface: #ffffff;
+            --surface-soft: rgba(255, 255, 255, 0.96);
+            --line: #d7e3f3;
+            --line-strong: #bfd4eb;
+            --text: #0f1f33;
+            --muted: #5d6f84;
+            --brand: #0b5fa5;
+            --brand-strong: #0d3e84;
+            --accent: #0f766e;
+            --success: #15803d;
+            --danger: #dc2626;
+            --warn: #b45309;
+            --radius-xl: 24px;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --shadow-xl: 0 28px 60px rgba(2, 24, 48, 0.35);
+            --shadow-lg: 0 16px 30px rgba(13, 33, 54, 0.18);
+            --shadow-sm: 0 6px 14px rgba(11, 48, 82, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Segoe UI", "Segoe UI Variable", system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            color: var(--text);
+            background:
+                radial-gradient(1100px 520px at -12% -22%, rgba(56, 189, 248, 0.24), transparent 58%),
+                radial-gradient(900px 520px at 108% -18%, rgba(45, 212, 191, 0.18), transparent 62%),
+                linear-gradient(145deg, var(--bg-1) 0%, var(--bg-2) 52%, var(--bg-3) 100%);
+        }
+
+        .container {
+            max-width: 1320px;
+            margin: 0 auto;
+            padding: 28px clamp(16px, 3vw, 34px) 40px;
+        }
+
+        .header {
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 30px;
+            padding: clamp(24px, 3vw, 40px) clamp(16px, 3vw, 40px);
+            border-radius: var(--radius-xl);
+            text-align: center;
+            color: #f8fbff;
+            background:
+                linear-gradient(122deg, rgba(7, 35, 63, 0.88) 0%, rgba(11, 92, 153, 0.88) 55%, rgba(24, 95, 190, 0.88) 100%);
+            border: 1px solid rgba(188, 220, 255, 0.32);
+            box-shadow: var(--shadow-xl);
+        }
+
+        .header::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(480px 220px at 20% 0%, rgba(255, 255, 255, 0.18), transparent 70%),
+                radial-gradient(440px 220px at 85% 100%, rgba(125, 211, 252, 0.18), transparent 70%);
+        }
+
+        .header h1 {
+            position: relative;
+            z-index: 1;
+            font-size: clamp(1.7rem, 4vw, 3.2rem);
+            line-height: 1.15;
+            letter-spacing: 0.3px;
+            font-weight: 800;
+            margin-bottom: 12px;
+            text-shadow: 0 4px 14px rgba(4, 23, 46, 0.42);
+        }
+
+        .header p {
+            position: relative;
+            z-index: 1;
+            max-width: 760px;
+            margin: 0 auto;
+            font-size: clamp(1rem, 1.7vw, 1.3rem);
+            color: #e6f2ff;
+            font-weight: 500;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .control-group {
+            background: var(--surface-soft);
+            border: 1px solid var(--line-strong);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-lg);
+            padding: 22px;
+            transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
+        }
+
+        .control-group:hover {
+            transform: translateY(-3px);
+            border-color: #86b9e3;
+            box-shadow: 0 22px 34px rgba(6, 36, 66, 0.2);
+        }
+
+        .control-group h3 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 14px;
+            color: #0f4d85;
+            font-size: clamp(1.05rem, 1.6vw, 1.36rem);
+            font-weight: 800;
+            letter-spacing: 0.2px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .file-input {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .batch-actions {
+            margin-top: 8px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .batch-actions > button {
+            flex: 1 1 200px;
+        }
+
+        .batch-actions.single > button {
+            flex: 1 1 auto;
+        }
+
+        .file-input-button,
+        #batchPdfButton,
+        #batchQrButton,
+        #extractQrFromPdfButton {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            min-height: 50px;
+            padding: 12px 16px;
+            border: 1px solid transparent;
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+            color: #ffffff;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease, background 0.2s ease;
+            box-shadow: var(--shadow-sm);
+            background: linear-gradient(120deg, var(--brand) 0%, var(--brand-strong) 100%);
+        }
+
+        .file-input-button:hover,
+        #batchPdfButton:hover,
+        #batchQrButton:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 20px rgba(11, 65, 113, 0.25);
+            filter: saturate(1.08);
+        }
+
+        #extractQrFromPdfButton {
+            background: linear-gradient(120deg, #be7f00 0%, #0f766e 100%);
+        }
+
+        #extractQrFromPdfButton:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 20px rgba(10, 61, 59, 0.26);
+            filter: saturate(1.08);
+        }
+
+        .file-status {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: var(--radius-md);
+            font-size: 0.94rem;
+            font-weight: 600;
+        }
+
+        .file-status.success {
+            background: #e6f9ed;
+            color: #166534;
+            border: 1px solid #a7f3d0;
+        }
+
+        .file-status.error {
+            background: #fff1f2;
+            color: #991b1b;
+            border: 1px solid #fecdd3;
+        }
+
+        .files-list {
+            margin-top: 12px;
+            min-height: 48px;
+            padding: 10px;
+            border-radius: var(--radius-md);
+            border: 1px solid #d9e7f4;
+            background: #f7fbff;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 9px 10px;
+            border-radius: 10px;
+            background: #ffffff;
+            border: 1px solid #e4eef9;
+            margin: 6px 0;
+        }
+
+        .file-item .file-name {
+            flex: 1;
+            color: #19324c;
+            font-weight: 600;
+        }
+
+        .file-item .file-size {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .workspace {
+            background: var(--surface);
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--line);
+            padding: clamp(16px, 2.2vw, 24px);
+            box-shadow: var(--shadow-xl);
+            min-height: 620px;
+        }
+
+        .pdf-viewer {
+            position: relative;
+            min-height: 540px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border: 2px dashed #c6d9ec;
+            border-radius: var(--radius-lg);
+            background:
+                radial-gradient(460px 180px at 10% -20%, rgba(59, 130, 246, 0.09), transparent 70%),
+                #f8fbff;
+        }
+
+        .pdf-viewer.has-pdf {
+            border: 2px solid #8bb7de;
+            background: #ffffff;
+        }
+
+        .pdf-canvas {
+            display: block;
+            margin: 0 auto;
+            box-shadow: 0 10px 24px rgba(15, 35, 55, 0.2);
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--muted);
+        }
+
+        .empty-state .icon {
+            font-size: 3.3rem;
+            margin-bottom: 12px;
+            opacity: 0.8;
+        }
+
+        .empty-state h3 {
+            color: #1f3854;
+            margin-bottom: 6px;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .pdf-page-hint {
+            display: none;
+            margin-top: 12px;
+            text-align: center;
+            color: #1e4f7f;
+            font-size: 0.95rem;
+            font-weight: 600;
+            background: #edf7ff;
+            border: 1px solid #c9e2f7;
+            border-radius: var(--radius-md);
+            padding: 10px 12px;
+        }
+
+        .pdf-navigation {
+            margin-top: 14px;
+            padding: 12px;
+            border-radius: var(--radius-md);
+            border: 1px solid #d7e7f7;
+            background: #f6fbff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nav-button {
+            min-width: 120px;
+            padding: 10px 14px;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            background: linear-gradient(120deg, #0c5c9f 0%, #144d88 100%);
+            color: #ffffff;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .nav-button:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 14px rgba(11, 78, 135, 0.24);
+        }
+
+        .nav-button:disabled {
+            background: #cbd5e1;
+            color: #64748b;
+            cursor: not-allowed;
+        }
+
+        .page-info {
+            color: #224f7d;
+            font-weight: 700;
+            font-size: 0.97rem;
+        }
+
+        .qr-overlay {
+            position: absolute;
+            cursor: move;
+            user-select: none;
+            z-index: 10;
+            border: 2px dashed #0c5f9f;
+            border-radius: 8px;
+            box-shadow: 0 0 0 2px rgba(12, 95, 159, 0.15);
+        }
+
+        .qr-overlay:hover {
+            border-color: #0f766e;
+            box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.24);
+        }
+
+        .qr-overlay img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .qr-controls {
+            position: absolute;
+            top: -32px;
+            right: 0;
+            display: flex;
+            gap: 6px;
+        }
+
+        .qr-control-btn {
+            width: 24px;
+            height: 24px;
+            border: none;
+            border-radius: 999px;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .resize-btn {
+            background: #0f766e;
+        }
+
+        .remove-btn {
+            background: #dc2626;
+        }
+
+        .resize-handle {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: #ffffff;
+            border: 2px solid #0c5f9f;
+            border-radius: 999px;
+            z-index: 20;
+        }
+
+        .resize-handle.resize-nw { top: -7px; left: -7px; cursor: nwse-resize; }
+        .resize-handle.resize-ne { top: -7px; right: -7px; cursor: nesw-resize; }
+        .resize-handle.resize-sw { bottom: -7px; left: -7px; cursor: nesw-resize; }
+        .resize-handle.resize-se { bottom: -7px; right: -7px; cursor: nwse-resize; }
+
+        .save-section {
+            margin-top: 24px;
+            text-align: center;
+        }
+
+        .save-button {
+            min-height: 52px;
+            padding: 12px 30px;
+            border: none;
+            border-radius: var(--radius-md);
+            background: linear-gradient(120deg, #0f8a54 0%, #0f766e 100%);
+            color: #ffffff;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+        }
+
+        .save-button:hover:not(:disabled) {
+            transform: translateY(-1px);
+            filter: saturate(1.05);
+            box-shadow: 0 12px 20px rgba(15, 118, 110, 0.24);
+        }
+
+        .save-button:disabled {
+            background: #cbd5e1;
+            color: #64748b;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            border-top: 2px solid #ffffff;
+            border-radius: 999px;
+            animation: spin 1s linear infinite;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            min-width: 260px;
+            max-width: 420px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            color: #ffffff;
+            font-weight: 700;
+            box-shadow: 0 14px 24px rgba(2, 24, 48, 0.3);
+            transform: translateX(440px);
+            transition: transform 0.25s ease;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.success {
+            background: linear-gradient(120deg, #15803d 0%, #0f766e 100%);
+        }
+
+        .toast.error {
+            background: linear-gradient(120deg, #b91c1c 0%, #dc2626 100%);
+        }
+
+        #relatorioModal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            background: rgba(2, 19, 36, 0.55);
+            backdrop-filter: blur(2px);
+        }
+
+        #relatorioModal > div {
+            width: min(760px, 92vw);
+            max-height: 84vh;
+            padding: 24px 22px 20px;
+            border-radius: 18px;
+            border: 1px solid #d9e9f8;
+            background: #ffffff;
+            box-shadow: var(--shadow-xl);
+            position: relative;
+        }
+
+        #closeRelatorioModal {
+            position: absolute;
+            top: 10px;
+            right: 14px;
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 999px;
+            background: #ffe4e6;
+            color: var(--danger);
+            font-size: 1.2rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        #relatorioModal h2 {
+            color: #0f4d85;
+            margin-bottom: 10px;
+            font-size: 1.3rem;
+            font-weight: 800;
+        }
+
+        #relatorioContent {
+            max-height: 60vh;
+            overflow: auto;
+            color: #243b53;
+            font-size: 0.96rem;
+            line-height: 1.45;
+            padding-right: 4px;
+        }
+
+        @media (max-width: 980px) {
+            .controls {
+                grid-template-columns: 1fr;
+            }
+
+            .workspace {
+                min-height: 560px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 16px 12px 28px;
+            }
+
+            .control-group {
+                padding: 16px;
+            }
+
+            .pdf-viewer {
+                min-height: 460px;
+            }
+
+            .nav-button {
+                min-width: 104px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>📄 SISTEMA DE INSERÇÃO DE QR CODE EM PDF</h1>
+            <p>Carregue seu arquivo PDF, insira um QR Code onde desejar e salve o resultado final.</p>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <h3>📄 CARREGAR DIPLOMAS EM PDF</h3>
+                <div class="file-input-wrapper">
+                    <input type="file" id="pdfInput" class="file-input" accept=".pdf">
+                    <!--label for="pdfInput" class="file-input-button">
+                        Selecionar Arquivo PDF
+                    </label-->
+                </div>
+                <div class="batch-actions">
+                    <button id="batchPdfButton" class="file-input-button" type="button">Arquivos em Lote PDF</button>
+                    <button id="extractQrFromPdfButton" class="file-input-button" type="button">Extrair QR dos PDFs</button>
+                </div>
+                <div id="pdfStatus" class="file-status" style="display: none;"></div>
+                <div id="pdfFilesList" class="files-list"></div>
+            </div>
+
+            <div class="control-group">
+                <h3>🖼 QRCODES CARREGADOS</h3>
+                <div class="file-input-wrapper">
+                    <input type="file" id="qrInput" class="file-input" accept="image/*">
+                    <!--label for="qrInput" class="file-input-button">
+                        Selecionar Imagem QR Code
+                    </label-->
+                </div>
+                <div class="batch-actions single">
+                    <button id="batchQrButton" style="display: none;" type="button">VAR QRCode</button>
+                </div>
+                <div id="qrStatus" class="file-status" style="display: none;"></div>
+                <div id="qrFilesList" class="files-list"></div>
+            </div>
+        </div>
+
+        <div class="workspace">
+            <div id="pdfViewer" class="pdf-viewer">
+                <div class="empty-state">
+                    <div class="icon">📄</div>
+                    <h3>Carregue um arquivo PDF para começar</h3>
+                    <p>O PDF aparecerá aqui para você adicionar o QR Code</p>
+                </div>
+            </div>
+            <div id="pdfPageHint" class="pdf-page-hint">
+                Navegue até a página desejada e clique para posicionar o QR Code. O QR será inserido apenas na página
+                atual.
+            </div>
+            <div id="pdfNavigation" class="pdf-navigation" style="display: none;">
+                <button id="prevPage" class="nav-button">◀ Anterior</button>
+                <span id="pageInfo" class="page-info">Página 1 de 1</span>
+                <button id="nextPage" class="nav-button">Próxima ▶</button>
+            </div>
+
+            <div class="save-section">
+                <button id="saveButton" class="save-button" disabled>
+                    💾 Salvar PDF com QR Code
+                </button>
+            </div>
+        </div>
+
+        <input type="file" id="batchPdfInput" class="file-input" accept=".pdf" multiple style="display:none">
+        <input type="file" id="batchQrInput" class="file-input" accept="image/*" multiple style="display:none">
+    </div>
+
+    <!-- Adiciona modal de relatório ao final do body -->
+    <div id="relatorioModal">
+        <div>
+            <button id="closeRelatorioModal">×</button>
+            <h2>Relatório do Processamento em Lote</h2>
+            <div id="relatorioContent"></div>
+        </div>
+    </div>
+
+    <script>
+        class PDFQRInserter {
+            constructor() {
+                this.pdfDoc = null;
+                this.pdfBytes = null;
+                this.pdfBytesCopy = null;
+                this.currentPage = 1;
+                this.totalPages = 0;
+                this.qrImage = null;
+                this.qrBlob = null;
+                this.scale = 1.5;
+                this.qrOverlays = [];
+                this.batchPdfFiles = [];
+                this.batchQrFiles = [];
+
+                this.init();
+            }
+
+            init() {
+                // Configure PDF.js worker
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+                this.bindEvents();
+            }
+
+            bindEvents() {
+                document.getElementById('pdfInput').addEventListener('change', (e) => this.handlePDFUpload(e));
+                document.getElementById('qrInput').addEventListener('change', (e) => this.handleQRUpload(e));
+                document.getElementById('prevPage').addEventListener('click', () => this.prevPage());
+                document.getElementById('nextPage').addEventListener('click', () => this.nextPage());
+                document.getElementById('saveButton').addEventListener('click', () => this.savePDF());
+                // Eventos para lote
+                document.getElementById('batchPdfButton').addEventListener('click', () => {
+                    document.getElementById('batchPdfInput').click();
+                });
+                document.getElementById('batchQrButton').addEventListener('click', () => {
+                    document.getElementById('batchQrInput').click();
+                });
+                document.getElementById('batchPdfInput').addEventListener('change', (e) => this.handleBatchPdfUpload(e));
+                document.getElementById('batchQrInput').addEventListener('change', (e) => this.handleBatchQrUpload(e));
+                document.getElementById('extractQrFromPdfButton').addEventListener('click', () => {
+                    this.handleExtractQrFromPdf();
+                });
+            }
+
+            // Lógica para armazenar arquivos em lote
+            batchPdfFiles = [];
+            batchQrFiles = [];
+
+            async handleBatchPdfUpload(event) {
+                try {
+                    this.batchPdfFiles = Array.from(event.target.files);
+                    this.updateFilesList(this.batchPdfFiles, 'pdf');
+                    await this.tryShowFirstBatchPreview();
+                    this.updateSaveButton();
+                } catch (error) {
+                    console.error('Erro ao carregar PDFs:', error);
+                    this.showToast('Erro ao carregar PDFs. Verifique se os arquivos são válidos.', 'error');
+                }
+            }
+
+            async handleBatchQrUpload(event) {
+                try {
+                    this.batchQrFiles = Array.from(event.target.files);
+                    this.updateFilesList(this.batchQrFiles, 'qr');
+                    await this.tryShowFirstBatchPreview();
+                    this.updateSaveButton();
+                } catch (error) {
+                    console.error('Erro ao carregar QR codes:', error);
+                    this.showToast('Erro ao carregar QR codes. Verifique se os arquivos são válidos.', 'error');
+                }
+            }
+
+            updateFilesList(files, type) {
+                const containerID = type === 'pdf' ? 'pdfFilesList' : 'qrFilesList';
+                const container = document.getElementById(containerID);
+                container.innerHTML = '';
+
+                Array.from(files).forEach((file, index) => {
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'file-item';
+
+                    const fileName = document.createElement('span');
+                    fileName.className = 'file-name';
+                    fileName.textContent = file.name;
+
+                    const fileSize = document.createElement('span');
+                    fileSize.className = 'file-size';
+                    fileSize.textContent = this.formatFileSize(file.size);
+
+                    fileItem.appendChild(fileName);
+                    fileItem.appendChild(fileSize);
+                    container.appendChild(fileItem);
+                });
+            }
+
+            formatFileSize(bytes) {
+                if (bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            async tryShowFirstBatchPreview() {
+                try {
+                    if (this.batchPdfFiles.length === 0 || this.batchQrFiles.length === 0) return;
+
+                    // Limpa overlays antigos
+                    this.qrOverlays = [];
+                    document.querySelectorAll('.qr-overlay').forEach(el => el.remove());
+
+                    // Carrega o primeiro PDF
+                    const file = this.batchPdfFiles[0];
+                    this.pdfBytes = await file.arrayBuffer();
+                    this.pdfBytesCopy = this.pdfBytes.slice(0);
+                    this.pdfDoc = await pdfjsLib.getDocument({ data: this.pdfBytes }).promise;
+                    this.totalPages = this.pdfDoc.numPages;
+                    this.currentPage = 1;
+                    await this.renderPage();
+                    this.updateNavigation();
+
+                    // Carrega o primeiro QR Code
+                    const qrFile = this.batchQrFiles[0];
+                    this.qrBlob = qrFile;
+                    this.qrImage = await this.createImageFromFile(qrFile);
+
+                    this.showToast('Ajuste o QR Code no primeiro PDF. O mesmo ajuste será aplicado a todos.', 'success');
+                    this.enableQRPlacement();
+                } catch (error) {
+                    console.error('Erro ao exibir preview:', error);
+                    this.showToast('Erro ao exibir preview. Tente novamente.', 'error');
+                }
+            }
+
+            async handlePDFUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const statusDiv = document.getElementById('pdfStatus');
+                statusDiv.style.display = 'block';
+                statusDiv.className = 'file-status';
+                statusDiv.innerHTML = '<div class="loading"></div> Carregando PDF...';
+
+                try {
+                    this.pdfBytes = await file.arrayBuffer();
+                    // Faz uma cópia do ArrayBuffer para evitar detach
+                    this.pdfBytesCopy = this.pdfBytes.slice(0);
+                    this.pdfDoc = await pdfjsLib.getDocument({ data: this.pdfBytes }).promise;
+                    this.totalPages = this.pdfDoc.numPages;
+                    this.currentPage = 1;
+
+                    await this.renderPage();
+                    this.updateNavigation();
+
+                    statusDiv.className = 'file-status success';
+                    statusDiv.innerHTML = `✅ PDF carregado com sucesso! (${this.totalPages} página${this.totalPages > 1 ? 's' : ''})`;
+                } catch (error) {
+                    console.error('Erro ao carregar PDF:', error);
+                    statusDiv.className = 'file-status error';
+                    statusDiv.innerHTML = '❌ Erro ao carregar PDF. Verifique se o arquivo é válido.';
+                }
+            }
+
+            async handleQRUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const statusDiv = document.getElementById('qrStatus');
+                statusDiv.style.display = 'block';
+                statusDiv.className = 'file-status';
+                statusDiv.innerHTML = '<div class="loading"></div> Carregando QR Code...';
+
+                try {
+                    this.qrBlob = file;
+                    this.qrImage = await this.createImageFromFile(file);
+
+                    statusDiv.className = 'file-status success';
+                    statusDiv.innerHTML = '✅ QR Code carregado com sucesso! Clique no PDF para posicionar.';
+
+                    // Exibe a dica de página
+                    document.getElementById('pdfPageHint').style.display = 'block';
+                    // Enable clicking on PDF to add QR
+                    this.enableQRPlacement();
+                } catch (error) {
+                    console.error('Erro ao carregar QR:', error);
+                    statusDiv.className = 'file-status error';
+                    statusDiv.innerHTML = '❌ Erro ao carregar imagem. Verifique se o arquivo é válido.';
+                }
+            }
+
+            createImageFromFile(file) {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.onload = () => resolve(img);
+                    img.onerror = reject;
+                    img.src = URL.createObjectURL(file);
+                });
+            }
+
+            async renderPage() {
+                if (!this.pdfDoc) return;
+
+                const page = await this.pdfDoc.getPage(this.currentPage);
+                const viewport = page.getViewport({ scale: this.scale });
+
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                await page.render({
+                    canvasContext: context,
+                    viewport: viewport
+                }).promise;
+
+                const viewer = document.getElementById('pdfViewer');
+                viewer.innerHTML = '';
+                viewer.className = 'pdf-viewer has-pdf';
+                
+                const wrapper = document.createElement('div');
+                wrapper.id = 'canvasWrapper';
+                wrapper.style.position = 'relative';
+                wrapper.style.display = 'inline-block';
+                wrapper.style.lineHeight = '0';
+                wrapper.appendChild(canvas);
+                
+                viewer.appendChild(wrapper);
+                canvas.className = 'pdf-canvas';
+
+                // Re-add QR overlays for current page
+                this.renderQROverlays();
+            }
+
+            enableQRPlacement() {
+                if (!this.qrImage) return;
+
+                const viewer = document.getElementById('pdfViewer');
+                viewer.style.cursor = 'crosshair';
+
+                const clickHandler = (e) => {
+                    if (e.target.classList.contains('pdf-canvas')) {
+                        this.addQROverlay(e);
+                        viewer.style.cursor = 'default';
+                        viewer.removeEventListener('click', clickHandler);
+                    }
+                };
+
+                viewer.addEventListener('click', clickHandler);
+            }
+
+            addQROverlay(event) {
+                const rect = event.target.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+
+                // Remover overlay antigo da mesma página, se existir
+                this.qrOverlays = this.qrOverlays.filter(qr => qr.page !== this.currentPage);
+
+                const overlay = document.createElement('div');
+                overlay.className = 'qr-overlay';
+                
+                const aspect = this.qrImage.width ? (this.qrImage.height / this.qrImage.width) : 1;
+                const baseWidth = 100;
+                const baseHeight = baseWidth * aspect;
+
+                overlay.style.left = x - (baseWidth / 2) + 'px';
+                overlay.style.top = y - (baseHeight / 2) + 'px';
+                overlay.style.width = baseWidth + 'px';
+                overlay.style.height = baseHeight + 'px';
+
+                const img = document.createElement('img');
+                img.src = this.qrImage.src;
+                overlay.appendChild(img);
+
+                const controls = document.createElement('div');
+                controls.className = 'qr-controls';
+
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'qr-control-btn remove-btn';
+                removeBtn.innerHTML = '×';
+                removeBtn.title = 'Remover';
+
+                controls.appendChild(removeBtn);
+                overlay.appendChild(controls);
+
+                // Add resize handles
+                const handles = ['nw', 'ne', 'sw', 'se'];
+                handles.forEach(pos => {
+                    const handle = document.createElement('div');
+                    handle.className = `resize-handle resize-${pos}`;
+                    handle.dataset.pos = pos;
+                    overlay.appendChild(handle);
+                });
+
+                const wrapper = document.getElementById('canvasWrapper') || document.getElementById('pdfViewer');
+                wrapper.appendChild(overlay);
+
+                // Store overlay data
+                this.qrOverlays.push({
+                    page: this.currentPage,
+                    element: overlay,
+                    baseWidth: baseWidth,
+                    aspect: aspect
+                });
+
+                this.makeDraggable(overlay);
+                this.bindOverlayControls(overlay, aspect);
+                this.updateSaveButton();
+                this.renderQROverlays(); // Atualiza overlays visíveis
+            }
+
+            makeDraggable(element) {
+                let isDragging = false;
+                let startX, startY, startLeft, startTop;
+
+                element.addEventListener('mousedown', (e) => {
+                    if (e.target.classList.contains('qr-control-btn') || e.target.classList.contains('resize-handle')) return;
+
+                    isDragging = true;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    startLeft = parseInt(element.style.left);
+                    startTop = parseInt(element.style.top);
+
+                    document.addEventListener('mousemove', handleDrag);
+                    document.addEventListener('mouseup', stopDrag);
+                });
+
+                function handleDrag(e) {
+                    if (!isDragging) return;
+
+                    const deltaX = e.clientX - startX;
+                    const deltaY = e.clientY - startY;
+
+                    element.style.left = (startLeft + deltaX) + 'px';
+                    element.style.top = (startTop + deltaY) + 'px';
+                }
+
+                function stopDrag() {
+                    isDragging = false;
+                    document.removeEventListener('mousemove', handleDrag);
+                    document.removeEventListener('mouseup', stopDrag);
+                }
+            }
+
+            bindOverlayControls(overlay, aspect = 1) {
+                const removeBtn = overlay.querySelector('.remove-btn');
+                const handles = overlay.querySelectorAll('.resize-handle');
+
+                let isResizing = false;
+                let currentPos = '';
+                let startX, startY, startWidth, startHeight, startLeft, startTop;
+
+                handles.forEach(handle => {
+                    handle.addEventListener('mousedown', (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        isResizing = true;
+                        currentPos = handle.dataset.pos;
+                        startX = e.clientX;
+                        startY = e.clientY;
+                        startWidth = parseFloat(overlay.style.width);
+                        startHeight = parseFloat(overlay.style.height);
+                        startLeft = parseFloat(overlay.style.left);
+                        startTop = parseFloat(overlay.style.top);
+
+                        document.addEventListener('mousemove', handleResize);
+                        document.addEventListener('mouseup', stopResize);
+                    });
+                });
+
+                function handleResize(e) {
+                    if (!isResizing) return;
+                    
+                    const deltaX = e.clientX - startX;
+                    const deltaY = e.clientY - startY;
+
+                    let newWidth = startWidth;
+                    let newHeight = startHeight;
+                    let newLeft = startLeft;
+                    let newTop = startTop;
+
+                    if (currentPos.includes('e')) {
+                        newWidth = startWidth + deltaX;
+                    } else if (currentPos.includes('w')) {
+                        newWidth = startWidth - deltaX;
+                        newLeft = startLeft + deltaX;
+                    }
+
+                    if (currentPos.includes('s')) {
+                        newHeight = startHeight + deltaY;
+                    } else if (currentPos.includes('n')) {
+                        newHeight = startHeight - deltaY;
+                        newTop = startTop + deltaY;
+                    }
+
+                    // Limites mínimos de tamanho
+                    if (newWidth >= 30) {
+                        overlay.style.width = newWidth + 'px';
+                        overlay.style.left = newLeft + 'px';
+                    }
+                    if (newHeight >= 30) {
+                        overlay.style.height = newHeight + 'px';
+                        overlay.style.top = newTop + 'px';
+                    }
+                }
+
+                function stopResize() {
+                    isResizing = false;
+                    document.removeEventListener('mousemove', handleResize);
+                    document.removeEventListener('mouseup', stopResize);
+                }
+
+                removeBtn.addEventListener('click', () => {
+                    // Remove from overlays array
+                    const index = this.qrOverlays.findIndex(qr => qr.element === overlay);
+                    if (index > -1) {
+                        this.qrOverlays.splice(index, 1);
+                    }
+
+                    overlay.remove();
+                    this.updateSaveButton();
+                });
+            }
+
+            renderQROverlays() {
+                // Clear existing overlays from DOM
+                document.querySelectorAll('.qr-overlay').forEach(el => el.remove());
+
+                // Re-add overlays for current page
+                this.qrOverlays
+                    .filter(qr => qr.page === this.currentPage)
+                    .forEach(qrData => {
+                        const wrapper = document.getElementById('canvasWrapper') || document.getElementById('pdfViewer');
+                        wrapper.appendChild(qrData.element);
+                    });
+            }
+
+            updateNavigation() {
+                const navigation = document.getElementById('pdfNavigation');
+                const prevBtn = document.getElementById('prevPage');
+                const nextBtn = document.getElementById('nextPage');
+                const pageInfo = document.getElementById('pageInfo');
+
+                if (this.totalPages > 1) {
+                    navigation.style.display = 'flex';
+                    prevBtn.disabled = this.currentPage === 1;
+                    nextBtn.disabled = this.currentPage === this.totalPages;
+                    pageInfo.textContent = `Página ${this.currentPage} de ${this.totalPages}`;
+                } else {
+                    navigation.style.display = 'none';
+                }
+            }
+
+            async prevPage() {
+                if (this.currentPage > 1) {
+                    this.currentPage--;
+                    await this.renderPage();
+                    this.updateNavigation();
+                }
+            }
+
+            async nextPage() {
+                if (this.currentPage < this.totalPages) {
+                    this.currentPage++;
+                    await this.renderPage();
+                    this.updateNavigation();
+                }
+            }
+
+            // Adiciona botão para baixar lote se ambos os lotes estiverem carregados
+            updateSaveButton() {
+                const saveButton = document.getElementById('saveButton');
+                const hasQR = this.qrOverlays.length > 0;
+                const hasPDF = this.pdfDoc !== null;
+                saveButton.disabled = !(hasQR && hasPDF);
+
+                // Botão de salvar lote
+                let batchBtn = document.getElementById('saveBatchButton');
+                if (!batchBtn && (this.batchPdfFiles.length > 0 || this.batchQrFiles.length > 0)) {
+                    batchBtn = document.createElement('button');
+                    batchBtn.id = 'saveBatchButton';
+                    batchBtn.className = 'save-button';
+                    batchBtn.style.marginLeft = '20px';
+                    batchBtn.innerHTML = '📦 Baixar Lote ZIP';
+                    batchBtn.addEventListener('click', () => this.saveBatchZip());
+                    saveButton.parentNode.appendChild(batchBtn);
+                }
+                if (batchBtn) {
+                    batchBtn.disabled = !(this.batchPdfFiles.length > 0 && this.batchQrFiles.length > 0 && this.qrOverlays.length > 0);
+                }
+            }
+
+            // Função para salvar todos os PDFs com QR em lote e baixar ZIP
+            async saveBatchZip() {
+                if (!(this.batchPdfFiles.length > 0 && this.batchQrFiles.length > 0)) {
+                    this.showToast('Carregue os PDFs e QR Codes para baixar o lote.', 'error');
+                    return;
+                }
+
+                if (this.qrOverlays.length === 0) {
+                    this.showToast('Posicione o QR Code no primeiro PDF para definir o modelo.', 'error');
+                    return;
+                }
+
+                const saveBatchButton = document.getElementById('saveBatchButton');
+                saveBatchButton.disabled = true;
+                saveBatchButton.innerHTML = '<div class="loading"></div> Gerando ZIP...';
+
+                function normalizeName(str) {
+                    return str
+                        .toLowerCase()
+                        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos corretamente
+                        .replace(/[^a-z0-9]/gi, ' ')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                }
+
+                // Relatório detalhado
+                let relatorio = {
+                    pdfs: this.batchPdfFiles.map(f => f.name),
+                    qrs: this.batchQrFiles.map(f => f.name),
+                    pares: [],
+                    pdfsSemQr: [],
+                    qrsSemPdf: []
+                };
+
+                try {
+                    const zip = new JSZip();
+                    const qrOverlay = this.qrOverlays[0];
+                    const overlayPage = qrOverlay.page || 1;
+                    const canvas = document.querySelector('.pdf-canvas');
+                    const pageWidth = canvas.width;
+                    const pageHeight = canvas.height;
+                    const relativeX = parseFloat(qrOverlay.element.style.left) / pageWidth;
+                    const relativeY = parseFloat(qrOverlay.element.style.top) / pageHeight;
+                    const relativeWidth = parseFloat(qrOverlay.element.style.width) / pageWidth;
+                    const relativeHeight = parseFloat(qrOverlay.element.style.height) / pageHeight;
+
+                    const pdfMap = {};
+                    this.batchPdfFiles.forEach(pdf => {
+                        const name = normalizeName(pdf.name.replace(/\.pdf$/i, ''));
+                        pdfMap[name] = pdf;
+                    });
+                    const qrMap = {};
+                    this.batchQrFiles.forEach(qr => {
+                        const name = normalizeName(qr.name.replace(/\.(png|jpg|jpeg)$/i, ''));
+                        qrMap[name] = qr;
+                    });
+
+                    const matched = [];
+                    const unmatchedPdfs = [];
+                    const unmatchedQrs = [];
+
+                    for (const pdfName in pdfMap) {
+                        if (qrMap[pdfName]) {
+                            matched.push({ pdf: pdfMap[pdfName], qr: qrMap[pdfName], name: pdfName });
+                            relatorio.pares.push({ pdf: pdfMap[pdfName].name, qr: qrMap[pdfName].name });
+                        } else {
+                            unmatchedPdfs.push(pdfMap[pdfName].name);
+                            relatorio.pdfsSemQr.push(pdfMap[pdfName].name);
+                        }
+                    }
+                    for (const qrName in qrMap) {
+                        if (!pdfMap[qrName]) {
+                            unmatchedQrs.push(qrMap[qrName].name);
+                            relatorio.qrsSemPdf.push(qrMap[qrName].name);
+                        }
+                    }
+
+                    for (let i = 0; i < matched.length; i++) {
+                        try {
+                            const { pdf, qr, name } = matched[i];
+                            const pdfBytes = await pdf.arrayBuffer();
+                            const pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
+                            const qrBytes = await qr.arrayBuffer();
+                            const qrImage = await pdfDoc.embedPng(qrBytes);
+                            const pageIndex = Math.max(0, overlayPage - 1);
+                            const page = pdfDoc.getPage(pageIndex);
+                            const { width: pdfWidth, height: pdfHeight } = page.getSize();
+                            const x = pdfWidth * relativeX;
+                            const y = pdfHeight * (1 - relativeY - relativeHeight);
+                            const width = pdfWidth * relativeWidth;
+                            const height = pdfHeight * relativeHeight;
+                            page.drawImage(qrImage, { x, y, width, height });
+                            
+                            // Adiciona texto de validação no rodapé da segunda página (ou na primeira se houver apenas uma)
+                            const helveticaFont = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+                            const targetPageIndex = pdfDoc.getPageCount() >= 2 ? 1 : 0;
+                            const targetPage = pdfDoc.getPage(targetPageIndex);
+                            targetPage.drawText('Validar em: https://esap.pge.rj.gov.br/mod/simplecertificate/verify.php', {
+                                x: 25,
+                                y: 15,
+                                size: 10,
+                                font: helveticaFont,
+                                color: PDFLib.rgb(0.2, 0.2, 0.2)
+                            });
+
+                            const newPdfBytes = await pdfDoc.save();
+                            const fileName = pdf.name.replace(/\.pdf$/i, '_com_qrcode.pdf');
+                            zip.file(fileName, newPdfBytes);
+                            saveBatchButton.innerHTML = `<div class=\"loading\"></div> Processando ${i + 1}/${matched.length}...`;
+                        } catch (err) {
+                            console.error(`Erro ao processar par ${i + 1}:`, err);
+                            this.showToast(`Erro ao processar par ${i + 1}: ${err.message}`, 'error');
+                        }
+                    }
+
+                    const content = await zip.generateAsync({ type: 'blob' });
+                    const url = URL.createObjectURL(content);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'documentos_com_qrcode.zip';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    // Relatório HTML
+                    let html = '';
+                    html += `<b>PDFs carregados:</b><ul>` + relatorio.pdfs.map(n => `<li>${n}</li>`).join('') + '</ul>';
+                    html += `<b>QR Codes carregados:</b><ul>` + relatorio.qrs.map(n => `<li>${n}</li>`).join('') + '</ul>';
+                    html += `<b>Pares encontrados:</b><ul>` + (relatorio.pares.length ? relatorio.pares.map(p => `<li>PDF: <b>${p.pdf}</b> <br>QR: <b>${p.qr}</b></li>`).join('') : '<li>Nenhum par encontrado</li>') + '</ul>';
+                    html += `<b>PDFs sem QR correspondente:</b><ul>` + (relatorio.pdfsSemQr.length ? relatorio.pdfsSemQr.map(n => `<li>${n}</li>`).join('') : '<li>Nenhum</li>') + '</ul>';
+                    html += `<b>QR Codes sem PDF correspondente:</b><ul>` + (relatorio.qrsSemPdf.length ? relatorio.qrsSemPdf.map(n => `<li>${n}</li>`).join('') : '<li>Nenhum</li>') + '</ul>';
+
+                    document.getElementById('relatorioContent').innerHTML = html;
+                    document.getElementById('relatorioModal').style.display = 'flex';
+
+                    document.getElementById('closeRelatorioModal').onclick = () => {
+                        document.getElementById('relatorioModal').style.display = 'none';
+                    };
+
+                    let msg = '';
+                    if (unmatchedPdfs.length > 0) {
+                        msg += `PDF(s) sem QR correspondente: ${unmatchedPdfs.join(', ')}. `;
+                    }
+                    if (unmatchedQrs.length > 0) {
+                        msg += `QR(s) sem PDF correspondente: ${unmatchedQrs.join(', ')}. `;
+                    }
+                    if (msg) {
+                        this.showToast(msg, 'error');
+                    } else {
+                        this.showToast('ZIP gerado com sucesso!', 'success');
+                    }
+                } catch (error) {
+                    console.error('Erro ao gerar ZIP:', error);
+                    this.showToast('Erro ao gerar arquivo ZIP', 'error');
+                } finally {
+                    saveBatchButton.disabled = false;
+                    saveBatchButton.innerHTML = '📦 Baixar Lote ZIP';
+                }
+            }
+
+            // Função para extrair QR Codes de PDFs carregados e adiciona como arquivos de QR em lote
+            handleExtractQrFromPdf() {
+                // Cria input file para múltiplos PDFs
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.pdf';
+                input.multiple = true;
+                input.style.display = 'none';
+                document.body.appendChild(input);
+
+                input.addEventListener('change', async (e) => {
+                    const files = Array.from(e.target.files);
+                    if (!files.length) return;
+                    this.showToast('Extraindo QR Codes dos PDFs...', 'success');
+                    const qrImages = [];
+                    for (const file of files) {
+                        try {
+                            // Extrai QR da primeira página do PDF
+                            const qrBlob = await this.extractQrImageFromPdf(file);
+                            if (qrBlob) {
+                                // Renomeia o arquivo para manter correspondência
+                                qrImages.push(new File([qrBlob], file.name.replace(/\.pdf$/i, '.png'), { type: 'image/png' }));
+                            } else {
+                                this.showToast(`QR não encontrado em ${file.name}`, 'error');
+                            }
+                        } catch (err) {
+                            this.showToast(`Erro ao extrair QR de ${file.name}`, 'error');
+                        }
+                    }
+                    if (qrImages.length) {
+                        // Atualiza lote de QR Codes
+                        this.batchQrFiles = qrImages;
+                        this.updateFilesList(this.batchQrFiles, 'qr');
+                        await this.tryShowFirstBatchPreview();
+                        this.updateSaveButton();
+                        this.showToast('QR Codes extraídos e carregados!', 'success');
+                    }
+                    document.body.removeChild(input);
+                });
+
+                input.click();
+            }
+
+            // NOVO: Extrai imagem do QR Code da primeira página do PDF usando pdf.js + jsQR
+            async extractQrImageFromPdf(file) {
+                // Carrega PDF com pdf.js
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const page = await pdf.getPage(1);
+                const viewport = page.getViewport({ scale: 2.5 });
+                const canvas = document.createElement('canvas');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                const ctx = canvas.getContext('2d');
+                await page.render({ canvasContext: ctx, viewport }).promise;
+
+                // Extrai imagem do QR usando jsQR
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const qr = jsQR(imageData.data, canvas.width, canvas.height);
+                if (qr && qr.location) {
+                    // Recorta o QR Code da imagem
+                    const minX = Math.min(qr.location.topLeftCorner.x, qr.location.bottomLeftCorner.x, qr.location.topRightCorner.x, qr.location.bottomRightCorner.x);
+                    const maxX = Math.max(qr.location.topLeftCorner.x, qr.location.bottomLeftCorner.x, qr.location.topRightCorner.x, qr.location.bottomRightCorner.x);
+                    const minY = Math.min(qr.location.topLeftCorner.y, qr.location.bottomLeftCorner.y, qr.location.topRightCorner.y, qr.location.bottomRightCorner.y);
+                    const maxY = Math.max(qr.location.topLeftCorner.y, qr.location.bottomLeftCorner.y, qr.location.topRightCorner.y, qr.location.bottomRightCorner.y);
+                    const w = Math.max(1, maxX - minX);
+                    const h = Math.max(1, maxY - minY);
+                    
+                    // Adiciona padding para capturar a borda externa (preta) e o texto/UUID abaixo do código
+                    const paddingLeft = w * 0.18;
+                    const paddingRight = w * 0.18;
+                    const paddingTop = h * 0.18;
+                    const paddingBottom = h * 0.40;
+
+                    const cropX = Math.max(0, minX - paddingLeft);
+                    const cropY = Math.max(0, minY - paddingTop);
+                    const cropW = Math.min(canvas.width - cropX, w + paddingLeft + paddingRight);
+                    const cropH = Math.min(canvas.height - cropY, h + paddingTop + paddingBottom);
+
+                    const qrCanvas = document.createElement('canvas');
+                    qrCanvas.width = cropW;
+                    qrCanvas.height = cropH;
+                    const qrCtx = qrCanvas.getContext('2d');
+                    qrCtx.putImageData(ctx.getImageData(cropX, cropY, cropW, cropH), 0, 0);
+                    // Converte para blob PNG
+                    return await new Promise(resolve => qrCanvas.toBlob(resolve, 'image/png'));
+                }
+                return null;
+            }
+
+            async savePDF() {
+                if (!this.pdfDoc || this.qrOverlays.length === 0) return;
+
+                const saveButton = document.getElementById('saveButton');
+                saveButton.disabled = true;
+                saveButton.innerHTML = '<div class="loading"></div> Salvando PDF...';
+
+                try {
+                    // Load PDF with pdf-lib
+                    const pdfDoc = await PDFLib.PDFDocument.load(this.pdfBytesCopy);
+
+                    // Convert QR image to bytes
+                    const qrImageBytes = await this.qrBlob.arrayBuffer();
+                    const qrImage = await pdfDoc.embedPng(qrImageBytes);
+
+                    // Add QR codes to respective pages
+                    for (const qrData of this.qrOverlays) {
+                        // Garante que está pegando o canvas da página correta
+                        const page = pdfDoc.getPage(qrData.page - 1);
+                        const { width: pageWidth, height: pageHeight } = page.getSize();
+                        // Renderiza um viewport temporário para pegar as dimensões reais do canvas daquela página
+                        const viewport = await this.pdfDoc.getPage(qrData.page).then(p => p.getViewport({ scale: this.scale }));
+                        const canvasWidth = viewport.width;
+                        const canvasHeight = viewport.height;
+                        const scaleX = pageWidth / canvasWidth;
+                        const scaleY = pageHeight / canvasHeight;
+                        const x = parseFloat(qrData.element.style.left) * scaleX;
+                        const y = (canvasHeight - parseFloat(qrData.element.style.top) - parseFloat(qrData.element.style.height)) * scaleY;
+                        const width = parseFloat(qrData.element.style.width) * scaleX;
+                        const height = parseFloat(qrData.element.style.height) * scaleY;
+                        page.drawImage(qrImage, {
+                            x: x,
+                            y: y,
+                            width: width,
+                            height: height,
+                        });
+                    }
+
+                    // Adiciona texto de validação no rodapé da segunda página (ou na primeira se houver apenas uma)
+                    const helveticaFont = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+                    const targetPageIndex = pdfDoc.getPageCount() >= 2 ? 1 : 0;
+                    const targetPage = pdfDoc.getPage(targetPageIndex);
+                    targetPage.drawText('Validar em: https://esap.pge.rj.gov.br/mod/simplecertificate/verify.php', {
+                        x: 25,
+                        y: 15,
+                        size: 10,
+                        font: helveticaFont,
+                        color: PDFLib.rgb(0.2, 0.2, 0.2)
+                    });
+
+                    // Save PDF
+                    const pdfBytes = await pdfDoc.save();
+                    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                    const url = URL.createObjectURL(blob);
+
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'documento_com_qr_code.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    this.showToast('PDF salvo com sucesso!', 'success');
+                } catch (error) {
+                    console.error('Erro ao salvar PDF:', error);
+                    this.showToast('Erro ao salvar PDF. Tente novamente.', 'error');
+                } finally {
+                    saveButton.disabled = false;
+                    saveButton.innerHTML = '💾 Salvar PDF com QR Code';
+                }
+            }
+
+            showToast(message, type = 'success') {
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+                document.body.appendChild(toast);
+
+                setTimeout(() => {
+                    toast.classList.add('show');
+                }, 100);
+
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            }
+        }
+
+        // Initialize the application
+        new PDFQRInserter();
+    </script>
+</body>
+
+</html>

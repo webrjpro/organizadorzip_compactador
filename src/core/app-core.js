@@ -125,6 +125,16 @@ const DOM = {
 // ══════════════════════════════════════════════════════════════
 const ActionBus = {
     _started: false,
+    _managedSections: [
+        'section-upload',
+        'section-processing',
+        'section-results',
+        'section-csv',
+        'section-report',
+        'section-zipador-web',
+        'section-extrator-qr',
+    ],
+
     _handlers: {
         'pick-folder':      () => document.getElementById('file-input')?.click(),
         'pick-spreadsheet': () => document.getElementById('csv-file-input')?.click(),
@@ -135,6 +145,14 @@ const ActionBus = {
             }
             UI.toast('Módulo Zipador Web indisponível no momento.', 'error');
         },
+        'open-extrator-qr': () => {
+            const targetId = 'section-extrator-qr';
+            if (!document.getElementById(targetId)) {
+                UI.toast('Módulo Extrator QR indisponível no momento.', 'error');
+                return;
+            }
+            ActionBus._showOnlySection(targetId);
+        },
         'zipador-back-upload': () => {
             if (window.ZipadorWebApp && typeof window.ZipadorWebApp.backToUpload === 'function') {
                 window.ZipadorWebApp.backToUpload();
@@ -143,12 +161,27 @@ const ActionBus = {
             document.getElementById('section-zipador-web')?.classList.add('hidden-section');
             UI.showSection(DOM.sectionUpload);
         },
+        'extrator-back-upload': () => {
+            ActionBus._hideSections(['section-extrator-qr']);
+            UI.showSection(DOM.sectionUpload);
+        },
         'close-modal':      () => Categories.closeModal(),
         'add-category':     () => Categories.addCategory(),
         'reset-categories': () => Storage.reset(),
         'confirm-generate': () => Categories.confirmAndGenerate(),
         'toggle-student':   (el) => Categories._toggleStudent(el.dataset.id),
         'remove-category':  (el) => Categories.removeCategory(Number(el.dataset.idx)),
+    },
+
+    _hideSections(sectionIds = this._managedSections) {
+        sectionIds.forEach((id) => {
+            document.getElementById(id)?.classList.add('hidden-section');
+        });
+    },
+
+    _showOnlySection(targetId) {
+        this._hideSections();
+        document.getElementById(targetId)?.classList.remove('hidden-section');
     },
 
     init() {
@@ -241,40 +274,105 @@ const Storage = {
 // ══════════════════════════════════════════════════════════════
 const DB = {
     db: null,
-    async init() {
-        return new Promise((resolve, reject) => {
-            const req = indexedDB.open('EduVault_Swap', 1);
-            req.onupgradeneeded = e => {
-                e.target.result.createObjectStore('swap');
-            };
-            req.onsuccess = e => {
-                this.db = e.target.result;
+    _readyPromise: null,
+    _fallbackStore: null,
+    _usingFallback: false,
+
+    init() {
+        if (this._readyPromise) return this._readyPromise;
+
+        if (typeof indexedDB === 'undefined') {
+            this._enableFallback('IndexedDB indisponível neste navegador.');
+            this._readyPromise = Promise.resolve();
+            return this._readyPromise;
+        }
+
+        this._readyPromise = new Promise((resolve) => {
+            try {
+                const req = indexedDB.open('EduVault_Swap', 1);
+                req.onupgradeneeded = e => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains('swap')) db.createObjectStore('swap');
+                };
+                req.onsuccess = e => {
+                    this.db = e.target.result;
+                    resolve();
+                };
+                req.onerror = () => {
+                    this._enableFallback(req.error || 'Falha ao abrir IndexedDB.');
+                    resolve();
+                };
+            } catch (err) {
+                this._enableFallback(err);
                 resolve();
-            };
-            req.onerror = e => reject(e);
+            }
         });
+
+        return this._readyPromise;
     },
+
+    _enableFallback(reason) {
+        if (!this._usingFallback) {
+            Logger.warn('[DB] Fallback em memória ativado', reason);
+        }
+        this._usingFallback = true;
+        this.db = null;
+        if (!this._fallbackStore) this._fallbackStore = new Map();
+    },
+
+    async _ensureReady() {
+        await this.init();
+    },
+
     async put(key, blob) {
-        return new Promise((resolve, reject) => {
+        await this._ensureReady();
+
+        if (this._usingFallback || !this.db) {
+            this._fallbackStore.set(key, blob);
+            return;
+        }
+
+        return new Promise((resolve) => {
             const tx = this.db.transaction('swap', 'readwrite');
             tx.objectStore('swap').put(blob, key);
             tx.oncomplete = () => resolve();
-            tx.onerror = e => reject(e);
+            tx.onerror = e => {
+                this._enableFallback(e);
+                this._fallbackStore.set(key, blob);
+                resolve();
+            };
         });
     },
     async get(key) {
-        return new Promise((resolve, reject) => {
+        await this._ensureReady();
+
+        if (this._usingFallback || !this.db) {
+            return this._fallbackStore.get(key) || null;
+        }
+
+        return new Promise((resolve) => {
             const req = this.db.transaction('swap').objectStore('swap').get(key);
             req.onsuccess = e => resolve(e.target.result);
-            req.onerror = e => reject(e);
+            req.onerror = e => {
+                this._enableFallback(e);
+                resolve(this._fallbackStore.get(key) || null);
+            };
         });
     },
     async clear() {
-        return new Promise((resolve, reject) => {
+        await this._ensureReady();
+
+        if (this._fallbackStore) this._fallbackStore.clear();
+        if (this._usingFallback || !this.db) return;
+
+        return new Promise((resolve) => {
             const tx = this.db.transaction('swap', 'readwrite');
             tx.objectStore('swap').clear();
             tx.oncomplete = () => resolve();
-            tx.onerror = e => reject(e);
+            tx.onerror = e => {
+                this._enableFallback(e);
+                resolve();
+            };
         });
     }
 };
@@ -556,12 +654,17 @@ const Files = {
         State.studentsData = {};
         let totalFiles = 0;
 
-        for (const file of files) {
+        const normalized = files.map(file => {
             const rel = (file.webkitRelativePath || file.name).replace(/\\/g, '/');
-            const parts = rel.split('/').filter(Boolean);
-            if (parts.length < 3) continue; // Ignora ficheiros não dentro de subpastas de aluno
+            return { file, parts: rel.split('/').filter(Boolean) };
+        });
 
-            const studentName = parts[1];
+        for (const { file, parts } of normalized) {
+            if (parts.length < 2) continue; // Ignora ficheiros sem pasta de contexto
+
+            // Compatibilidade: alguns navegadores retornam "Aluno/arquivo.pdf" (2 níveis)
+            // em vez de "PastaRaiz/Aluno/arquivo.pdf" (3+ níveis).
+            const studentName = parts.length >= 3 ? parts[1] : parts[0];
             const originalName = parts[parts.length - 1];
 
             if (Config.IGNORED_FILES.has(originalName.toLowerCase())) continue;
